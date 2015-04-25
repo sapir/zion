@@ -298,8 +298,8 @@ begin
                     when opc_add            => st1out.alu_op <= aluop_add;
                     when opc_sub            => st1out.alu_op <= aluop_sub;
                     when opc_and            => st1out.alu_op <= aluop_and;
-                    -- TODO: nor needs NOT...
-                    when opc_or | opc_nor   => st1out.alu_op <= aluop_or;
+                    when opc_or             => st1out.alu_op <= aluop_or;
+                    when opc_nor            => st1out.alu_op <= aluop_nor;
                     when opc_xor            => st1out.alu_op <= aluop_xor;
                     when opc_sll            => st1out.alu_op <= aluop_sll;
                     when opc_srl            => st1out.alu_op <= aluop_srl;
