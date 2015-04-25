@@ -27,6 +27,8 @@ IFmt_JmpReg = InstrFormat('jump to register',
     (8, 4,0), 'reg', None)
 IFmt_Math2 = InstrFormat('math, 2 regs',
     (8, 4,4), 'reg reg', None)
+# TODO: swap imm and reg fields to be consistent so every ifmt that uses only
+# only reg puts it in rt rather than rs. means also swapping Math2 and JmpReg.
 IFmt_MathImm4 = InstrFormat('math, reg <<= imm4',
     (8, 4,4), 'reg imm4', None)
 
