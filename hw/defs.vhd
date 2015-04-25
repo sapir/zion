@@ -31,10 +31,13 @@ package defs is
 		aluop_sub,
 		aluop_and,
 		aluop_or,
+		aluop_nor,
 		aluop_xor,
 		aluop_sll,
 		aluop_srl,
-		aluop_exts
+		aluop_exts,
+		aluop_slt,
+		aluop_sltu
 		);
 end defs;
 

@@ -102,7 +102,7 @@ architecture Behavioral of zion is
 
             -- type of [conditional] branch to be performed. register to be
             -- tested will be in value1. (ALU inputs are set to ignore
-            -- these values). Branch destination will be in alu_res
+            -- these values). Branch destination will be calculated by ALU
             branch_type : Branch_Type;
 
             -- inputs to stages 3 & 4
@@ -304,10 +304,8 @@ begin
                     when opc_sll            => st1out.alu_op <= aluop_sll;
                     when opc_srl            => st1out.alu_op <= aluop_srl;
                     when opc_exts           => st1out.alu_op <= aluop_exts;
-
-                    -- subtract then check flags
-                    -- TODO: actually implement it
-                    when opc_slt | opc_sltu => st1out.alu_op <= aluop_sub;
+                    when opc_slt            => st1out.alu_op <= aluop_slt;
+                    when opc_sltu           => st1out.alu_op <= aluop_sltu;
 
                     when others => st1out.alu_op <= aluop_add;
                 end case;
@@ -545,9 +543,9 @@ begin
     end process;
 
     main_alu : alu PORT MAP (
-        op =>  st2in.alu_op,
-        a  =>  alu_inp1,    -- decided in st2_alu_proc
-        b  =>  alu_inp2,    -- decided in st2_alu_proc
+        op  => st2in.alu_op,
+        a   => alu_inp1,    -- decided in st2_alu_proc
+        b   => alu_inp2,    -- decided in st2_alu_proc
         res => st2out.alu_res);
 
     -- forward values from stage1
