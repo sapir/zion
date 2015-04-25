@@ -13,34 +13,24 @@ IFmt_Math3 = InstrFormat('math, 3 regs',
 
 IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
     (4, 8,4), 'reg imm8', [0,2,1])
-    # (4, 4,8), 'reg imm8')
 
 # memory access - 2 regs + 3-bit signed offset
 # (for lw/sw, offset must be aligned anyway, so we can multiply by 2)
 IFmt_Mem = InstrFormat('memory access',
     (5, 3,4,4), 'reg regofs', [0,3,2,1])
-    # (4, 4,3,5), 'reg regofs')
-    # (5, 3,3,5), 'reg regofs')
 
 IFmt_Math2 = InstrFormat('math, 2 regs',
     (8, 4,4), 'reg reg', None)
 IFmt_MathImm4 = InstrFormat('math, reg <<= imm4',
     (8, 4,4), 'reg imm4', None)
 
-# TODO: Imm16 and Jmps and Branch can be consolidated to a
-# single instruction format with a "delay slot"
-# (or relative branches can be made smaller- ?)
-# IFmt_Imm16 = InstrFormat('imm8: reg=imm8',
-    # (8, 4,0, 16), 'reg imm16')
-# TODO: b = beqz $zero. but currently no equiv. for bal
 IFmt_JmpRel = InstrFormat('jump to relative address',
     (5, 11), 'addr11', None)
-    # (8, 0, 16), 'addr')
+# TODO: move 4-bits to end so it's a 12-bit opcode
 IFmt_JmpReg = InstrFormat('jump to register',
     (8, 4,0), 'reg', None)
 IFmt_Branch = InstrFormat('branch (cond. jump)',
     (5, 7,4), 'reg addr7', [0,2,1])
-    # (8, 4,4, 16), 'reg reg addr')
 
 IFmt_Special = InstrFormat('special',
     (8, 0), '', None)
@@ -81,9 +71,9 @@ OPCODES = {
     # 4-bit opcodes (8)
     'add':  _O(0, IFmt_Math3),  # write to 0 for nop
     'sub':  _O(1, IFmt_Math3),  # used for neg
-    # TODO: these 2 could be Math3 with restricted reg
-    # (freeing space for...? lui,ori?)
-    # TODO: add slte, slteu?
+    # TODO: these 2 could be 5-bit Math3 with restricted reg, though
+    # branches would need to be moved aside. (freeing 4-bit opcode slots
+    # for...?)
     'slt':  _O(2, IFmt_Math3),
     'sltu': _O(3, IFmt_Math3),
 
@@ -98,6 +88,7 @@ OPCODES = {
     'sb':   _O(0x12, IFmt_Mem),
     'sw':   _O(0x13, IFmt_Mem),
 
+    # TODO: b = beqz $zero. but currently no equiv. for bal
     'b':    _O(0x14, IFmt_JmpRel),    # relative jump
     'bal':  _O(0x15, IFmt_JmpRel),    # relative jump & link
     'beqz': _O(0x16, IFmt_Branch),
@@ -118,6 +109,7 @@ OPCODES = {
     'jr':   _O(0x88, IFmt_JmpReg),
     'jalr': _O(0x89, IFmt_JmpReg),
 
+    # TODO: move above jr/jalr
     'exts': _O(0x8a, IFmt_Math2),
     # 'not':  IFmt_Math2,     # =nor w/ self
 
