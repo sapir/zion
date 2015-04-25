@@ -5,11 +5,11 @@ from collections import namedtuple
 
 
 InstrFormat = namedtuple('InstrFormat',
-    'desc fieldWidths operandTypes')
+    'desc fieldWidths operandTypes operandOrder')
 
 
 IFmt_Math3 = InstrFormat('math, 3 regs',
-    (4, 4,4,4), 'reg reg reg')
+    (4, 4,4,4), 'reg reg reg', None)
 
 # memory access - 2 restricted regs + 5-bit signed offset
 # (for lw/sw, offset must be aligned anyway, so we can
@@ -21,7 +21,7 @@ IFmt_Math3 = InstrFormat('math, 3 regs',
 #  IFmt_Mem could be (4, 4,3,5) so only base reg is
 #  restricted)
 IFmt_Mem = InstrFormat('memory access',
-    (4, 4,4,4), 'reg regofs')
+    (4, 4,4,4), 'reg regofs', [0,3,2,1])
     # (4, 4,3,5), 'reg regofs')
     # (5, 3,3,5), 'reg regofs')
 
@@ -29,7 +29,7 @@ IFmt_Mem = InstrFormat('memory access',
 # same set like restricted branch registers (so branches
 # can test equality to this register)
 IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
-    (5, 3,8), 'reg imm8')
+    (5, 8,3), 'reg imm8', [0,2,1])
     # (4, 4,8), 'reg imm8')
 
 # TODO: out of room! (addi,andi,slti,sltiu)
@@ -37,26 +37,27 @@ IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
     # (4, 4,4,8), 'reg reg imm8')
 
 IFmt_Math2 = InstrFormat('math, 2 regs',
-    (8, 4,4), 'reg reg')
+    (8, 4,4), 'reg reg', None)
 IFmt_MathImm4 = InstrFormat('math, reg <<= imm4',
-    (8, 4,4), 'reg imm4')
+    (8, 4,4), 'reg imm4', None)
 
 # TODO: Imm16 and Jmps and Branch can be consolidated to a
 # single instruction format with a "delay slot"
 # (or relative branches can be made smaller- ?)
 # IFmt_Imm16 = InstrFormat('imm8: reg=imm8',
     # (8, 4,0, 16), 'reg imm16')
+# TODO: b = beqz $zero. but currently no equiv. for bal
 IFmt_JmpRel = InstrFormat('jump to relative address',
-    (5, 11), 'addr11')
+    (5, 11), 'addr11', None)
     # (8, 0, 16), 'addr')
 IFmt_JmpReg = InstrFormat('jump to register',
-    (8, 4,0), 'reg')
+    (8, 4,0), 'reg', None)
 IFmt_Branch = InstrFormat('branch (cond. jump)',
-    (5, 4,7), 'reg addr7')
+    (5, 7,4), 'reg addr7', [0,2,1])
     # (8, 4,4, 16), 'reg reg addr')
 
 IFmt_Special = InstrFormat('special',
-    (8, 0), '')
+    (8, 0), '', None)
 
 
 # opcodes by group:
@@ -206,6 +207,18 @@ def joinBitFields(values, fieldWidths):
 
     return word
 
+def permute(values, order):
+    if order is None:
+        return values
+
+    return [values[idx] for idx in order]
+
+def unpermute(values, order):
+    if order is None:
+        return values
+
+    return [values[order.index(i)] for i in xrange(len(values))]
+
 def decodeML(word):
     if (word & 0x8000) == 0:
         opcodeLen = 4
@@ -217,6 +230,7 @@ def decodeML(word):
     opcodeID =  extractBits(word, 15, opcodeLen)
     name, opcodeInfo = OPCODES_BY_ID[opcodeID]
     fields = splitBitFields(word, opcodeInfo.ifmt.fieldWidths)
+    fields = unpermute(fields, opcodeInfo.ifmt.operandOrder)
 
     assert fields[0] == opcodeID
     operands = fields[1:]

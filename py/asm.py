@@ -166,9 +166,9 @@ def assemble(code):
             for (opnd, opndType)
             in zip(stmt.operands, opndTypes)]
 
-        word = joinBitFields(
-            [opcodeInfo.id] + operands,
-            opcodeInfo.ifmt.fieldWidths)
+        fields = [opcodeInfo.id] + operands
+        fields = permute(fields, opcodeInfo.ifmt.operandOrder)
+        word = joinBitFields(fields, opcodeInfo.ifmt.fieldWidths)
         assembledWords.append(word)
 
     return assembledWords
