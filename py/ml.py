@@ -11,30 +11,16 @@ InstrFormat = namedtuple('InstrFormat',
 IFmt_Math3 = InstrFormat('math, 3 regs',
     (4, 4,4,4), 'reg reg reg', None)
 
-# memory access - 2 restricted regs + 5-bit signed offset
-# (for lw/sw, offset must be aligned anyway, so we can
-    # shift it by 1 bit)
-# TODO: restricted registers! :(
-# (offset could be restricted instead?
-#  or we could restrict the dst reg in li8,
-#  thereby freeing a 4-bit opcode slot, and then
-#  IFmt_Mem could be (4, 4,3,5) so only base reg is
-#  restricted)
-IFmt_Mem = InstrFormat('memory access',
-    (4, 4,4,4), 'reg regofs', [0,3,2,1])
-    # (4, 4,3,5), 'reg regofs')
-    # (5, 3,3,5), 'reg regofs')
-
-# TODO: if reg is restricted, then it should be of
-# same set like restricted branch registers (so branches
-# can test equality to this register)
 IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
-    (5, 8,3), 'reg imm8', [0,2,1])
+    (4, 8,4), 'reg imm8', [0,2,1])
     # (4, 4,8), 'reg imm8')
 
-# TODO: out of room! (addi,andi,slti,sltiu)
-# IFmt_MathImm8 = InstrFormat('math, reg=reg+imm8',
-    # (4, 4,4,8), 'reg reg imm8')
+# memory access - 2 regs + 3-bit signed offset
+# (for lw/sw, offset must be aligned anyway, so we can multiply by 2)
+IFmt_Mem = InstrFormat('memory access',
+    (5, 3,4,4), 'reg regofs', [0,3,2,1])
+    # (4, 4,3,5), 'reg regofs')
+    # (5, 3,3,5), 'reg regofs')
 
 IFmt_Math2 = InstrFormat('math, 2 regs',
     (8, 4,4), 'reg reg', None)
@@ -101,16 +87,16 @@ OPCODES = {
     'slt':  _O(2, IFmt_Math3),
     'sltu': _O(3, IFmt_Math3),
 
-    'lb':   _O(4, IFmt_Mem),
-    'lw':   _O(5, IFmt_Mem),
-    'sb':   _O(6, IFmt_Mem),
-    'sw':   _O(7, IFmt_Mem),
+    'li8':  _O(4, IFmt_Imm8),      # = 3-reg addi w/ $zero
+    'lui':  _O(5, IFmt_Imm8),      # = li8 + slli w/ 16
+    'addi': _O(6, IFmt_Imm8),      # useful for loops
+    'ori':  _O(7, IFmt_Imm8),      # useful for li16
 
     # 5-bit opcodes (8)
-    'li8':  _O(0x10, IFmt_Imm8),      # = 3-reg addi w/ $zero
-    'lui':  _O(0x11, IFmt_Imm8),      # = li8 + slli w/ 16
-    'addi': _O(0x12, IFmt_Imm8),      # useful for loops
-    'ori':  _O(0x13, IFmt_Imm8),      # useful for li16
+    'lb':   _O(0x10, IFmt_Mem),
+    'lw':   _O(0x11, IFmt_Mem),
+    'sb':   _O(0x12, IFmt_Mem),
+    'sw':   _O(0x13, IFmt_Mem),
 
     'b':    _O(0x14, IFmt_JmpRel),    # relative jump
     'bal':  _O(0x15, IFmt_JmpRel),    # relative jump & link
