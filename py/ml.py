@@ -10,7 +10,6 @@ InstrFormat = namedtuple('InstrFormat',
 
 IFmt_Math3 = InstrFormat('math, 3 regs',
     (4, 4,4,4), 'reg reg reg', None)
-
 IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
     (4, 8,4), 'reg imm8', [0,2,1])
 
@@ -18,19 +17,18 @@ IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
 # (for lw/sw, offset must be aligned anyway, so we can multiply by 2)
 IFmt_Mem = InstrFormat('memory access',
     (5, 3,4,4), 'reg regofs', [0,3,2,1])
+IFmt_JmpRel = InstrFormat('jump to relative address',
+    (5, 11), 'addr11', None)
+IFmt_Branch = InstrFormat('branch (cond. jump)',
+    (5, 7,4), 'reg addr7', [0,2,1])
 
+# TODO: move 4-bits to end so it's a 12-bit opcode
+IFmt_JmpReg = InstrFormat('jump to register',
+    (8, 4,0), 'reg', None)
 IFmt_Math2 = InstrFormat('math, 2 regs',
     (8, 4,4), 'reg reg', None)
 IFmt_MathImm4 = InstrFormat('math, reg <<= imm4',
     (8, 4,4), 'reg imm4', None)
-
-IFmt_JmpRel = InstrFormat('jump to relative address',
-    (5, 11), 'addr11', None)
-# TODO: move 4-bits to end so it's a 12-bit opcode
-IFmt_JmpReg = InstrFormat('jump to register',
-    (8, 4,0), 'reg', None)
-IFmt_Branch = InstrFormat('branch (cond. jump)',
-    (5, 7,4), 'reg addr7', [0,2,1])
 
 IFmt_Special = InstrFormat('special',
     (8, 0), '', None)
