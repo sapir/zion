@@ -77,6 +77,12 @@ architecture Behavioral of zion is
     signal dcm_clk              : std_logic;
 
     signal pc       : MemWordAddr := (others => '0');
+    -- if '1', pc in stage 0 won't be updated to stage 1's next_pc, so
+    -- instruction in stage 1 will be repeated. (stage 1 should of course also
+    -- be invalidated using st1out.invalid_flag.) in case of branch from stage
+    -- 2, stall of stage 1 will be ignored; it should have been invalidated
+    -- anyway.
+    signal stall_st1 : std_logic := '0';
 
     type Stage_0_1_Interface is
         record
@@ -128,6 +134,10 @@ architecture Behavioral of zion is
     type Stage_1_2_Interface is
         record
             -- inputs to stage 2
+
+            -- if '1', don't do anything (no branches or writes)
+            invalid_flag: std_logic;
+
             alu_op      : Alu_Op_Type;
 
             value1      : ImmOrReg_Type;    -- associated register is in rs
@@ -151,7 +161,8 @@ architecture Behavioral of zion is
         end record;
     -- explicit initialization to avoid an optimization warning
     signal st1out, st2in : Stage_1_2_Interface
-        := (alu_op      => aluop_add,
+        := (invalid_flag => '0',
+            alu_op      => aluop_add,
             value1      => (imm => (others => '0'),
                             reg_idx => (others => '0'),
                             reg_val => (others => '0'),
@@ -189,7 +200,9 @@ architecture Behavioral of zion is
             pc_plus_2   : MemWordAddr;
 
             -- copied from stage 1
-            wr_type     : Write_Type;
+            wr_type     : Write_Type;   -- rather than forward invalid_flag to
+                                            -- stage 3, this just gets set to
+                                            -- wr_none
             wr_reg_idx  : Reg_Index;
             reg2_idx    : Reg_Index;    -- st1out.value2.reg_idx
             reg2_val    : Logic_Word;   -- not necessarily copied from stage 1
@@ -264,8 +277,8 @@ begin
 
     st0out.pc_plus_2 <= std_logic_vector(unsigned(pc) + 1);
 
-    st0_comb_proc : process(st0out.pc_plus_2, st2_branch_flag,
-            st2in.branch_type, st2in.branch_dest, st2_reg2_val)
+    st0_comb_proc : process(pc, st0out.pc_plus_2, stall_st1,
+        st2_branch_flag, st2in.branch_type, st2in.branch_dest, st2_reg2_val)
     begin
         if st2_branch_flag = '1' then
             if st2in.branch_type = b_always_reg then
@@ -274,6 +287,10 @@ begin
                 -- all other branch types calculate the destination in stage 1
                 st0out.next_pc <= st2in.branch_dest;
             end if;
+
+        elsif stall_st1 = '1' then
+            st0out.next_pc <= pc;
+
         else
             -- copy value we're passing to stage 4
             st0out.next_pc <= st0out.pc_plus_2;
@@ -541,24 +558,19 @@ begin
             when others =>
                 -- use defaults
         end case;
-
-        -- handle control hazard: invalidate instruction following
-        -- successful branch
-        -- TODO: consider putting the branch flag in st2out and then
-        -- invalidating instruction after it reaches stage 2 using
-        -- st3in.branch_flag. may make design faster.
-        if st2_branch_flag = '1' then
-            st1out.branch_type      <= b_none;
-            st1out.wr_type          <= wr_none;
-        end if;
     end process;
 
-    -- figure out what data hazards stage 2 will encounter.
-    -- do this early (in stage 1) so that stage 2 is shorter.
-    st1_data_hazards_in_st2_proc : process(st1out.value1, st1out.value2,
-        st2in.wr_type, st2in.wr_reg_idx,
+    st1_hazards_proc : process(st1out.value1, st1out.value2,
+        st2in.wr_type, st2in.wr_reg_idx, st2_branch_flag,
         st3in.wr_type, st3in.wr_reg_idx)
     begin
+        -- default: *don't* invalidate or stall stuff
+        st1out.invalid_flag <= '0';
+        stall_st1           <= '0';
+
+        -- figure out what data hazards stage 2 will encounter.
+        -- do this early (in stage 1) so that stage 2 is shorter.
+
         -- default: use values from stage 1 unless there's a data hazard
         st1out.value1.regval_src <= rvs_st1;
         st1out.value2.regval_src <= rvs_st1;
@@ -593,7 +605,9 @@ begin
                 end if;
 
             when wr_memb_to_reg | wr_memw_to_reg =>
-                -- TODO: stall! (or delay slot)
+                st1out.invalid_flag <= '1';
+                -- try this instruction again next cycle
+                stall_st1 <= '1';
 
             when wr_pc_plus_2_to_ra =>
                 if ra_reg_idx = st1out.value1.reg_idx then
@@ -607,6 +621,16 @@ begin
             when others =>
                 -- no data hazard
         end case;
+
+
+        -- handle control hazard: invalidate instruction following
+        -- successful branch
+        -- TODO: consider putting the branch flag in st2out and then
+        -- invalidating instruction after it reaches stage 2 using
+        -- st3in.branch_flag. may make design faster.
+        if st2_branch_flag = '1' then
+            st1out.invalid_flag <= '1';
+        end if;
     end process;
 
 
@@ -656,27 +680,31 @@ begin
  
     st2_branch_proc : process(st2in, st2_reg2_val)
     begin
-        case st2in.branch_type is
-            when b_always_imm | b_always_reg =>
-                st2_branch_flag <= '1';
-
-            when b_eqz =>
-                if st2_reg2_val = "0000000000000000" then
+        if st2in.invalid_flag = '0' then
+            case st2in.branch_type is
+                when b_always_imm | b_always_reg =>
                     st2_branch_flag <= '1';
-                else
-                    st2_branch_flag <= '0';
-                end if;
 
-            when b_nez =>
-                if st2_reg2_val /= "0000000000000000" then
-                    st2_branch_flag <= '1';
-                else
-                    st2_branch_flag <= '0';
-                end if;
+                when b_eqz =>
+                    if st2_reg2_val = "0000000000000000" then
+                        st2_branch_flag <= '1';
+                    else
+                        st2_branch_flag <= '0';
+                    end if;
 
-            when others =>
-                st2_branch_flag <= '0';
-        end case;
+                when b_nez =>
+                    if st2_reg2_val /= "0000000000000000" then
+                        st2_branch_flag <= '1';
+                    else
+                        st2_branch_flag <= '0';
+                    end if;
+
+                when others =>
+                    st2_branch_flag <= '0';
+            end case;
+        else -- if invalid
+            st2_branch_flag <= '0';
+        end if;
     end process;
 
     -- sub-records (st2in.value*) specified explicitly to avoid warning
@@ -705,7 +733,8 @@ begin
         res => st2out.alu_res);
 
     -- forward values from stage 1
-    st2out.wr_type      <= st2in.wr_type;
+    st2out.wr_type      <= wr_none when st2in.invalid_flag = '1'
+                                else st2in.wr_type;
     st2out.wr_reg_idx   <= st2in.wr_reg_idx;
     st2out.pc_plus_2    <= st2in.pc_plus_2;
     st2out.reg2_idx     <= st2in.value2.reg_idx;
