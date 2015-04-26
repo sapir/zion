@@ -72,7 +72,7 @@ architecture Behavioral of zion is
             next_pc     : MemWordAddr;
 
             -- inputs to stage 4
-            pc_plus_4   : MemWordAddr;      -- used for branch link
+            pc_plus_2   : MemWordAddr;      -- used for branch link
         end record;
     signal st0out, st1in : Stage_0_1_Interface;
 
@@ -93,7 +93,7 @@ architecture Behavioral of zion is
 
     type Branch_Type is (b_none, b_always, b_eqz, b_nez);
     type Write_Type is (wr_none, wr_alu_to_reg, wr_memb_to_reg, wr_memw_to_reg,
-        wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_4_to_ra);
+        wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_2_to_ra);
 
     type Stage_1_2_Interface is
         record
@@ -113,7 +113,7 @@ architecture Behavioral of zion is
             wr_reg_idx  : Reg_Index;
 
             -- copied from stage 0
-            pc_plus_4   : MemWordAddr;
+            pc_plus_2   : MemWordAddr;
         end record;
     signal st1out, st2in : Stage_1_2_Interface;
 
@@ -137,7 +137,7 @@ architecture Behavioral of zion is
             alu_res     : Logic_Word;
 
             -- copied from stage 0
-            pc_plus_4   : MemWordAddr;
+            pc_plus_2   : MemWordAddr;
 
             -- copied from stage 1
             wr_type     : Write_Type;
@@ -185,16 +185,16 @@ begin
         end if;
     end process;
 
-    st0out.pc_plus_4 <= std_logic_vector(unsigned(pc) + 1);
+    st0out.pc_plus_2 <= std_logic_vector(unsigned(pc) + 1);
 
-    st0_comb_proc : process(st0out.pc_plus_4, st2_branch_flag, st2out.alu_res)
+    st0_comb_proc : process(st0out.pc_plus_2, st2_branch_flag, st2out.alu_res)
     begin
         if st2_branch_flag = '1' then
             -- truncate result
             st0out.next_pc <= st2out.alu_res(9 downto 0);
         else
             -- copy value we're passing to stage 4
-            st0out.next_pc <= st0out.pc_plus_4;
+            st0out.next_pc <= st0out.pc_plus_2;
         end if;
     end process;
 
@@ -299,7 +299,7 @@ begin
         st1out.branch_type      <= b_none;
         st1out.wr_type          <= wr_none;
         st1out.wr_reg_idx       <= (others => '0');
-        st1out.pc_plus_4        <= st1in.pc_plus_4;
+        st1out.pc_plus_2        <= st1in.pc_plus_2;
 
         case cur_opcode is
             -- IFmt_Math3, IFmt_Math2
@@ -416,10 +416,10 @@ begin
                 st1out.value2.imm <= Logic_Word(
                     resize(signed(st1in.instr(10 downto 0)), 16));
 
-                -- link: save $pc+4 in $ra
+                -- link: save $pc+2 in $ra
                 if cur_opcode = opc_bal then
                     st1out.wr_reg_idx <= ra_reg_idx;
-                    st1out.wr_type <= wr_pc_plus_4_to_ra;
+                    st1out.wr_type <= wr_pc_plus_2_to_ra;
                 end if;
 
             -- IFmt_Branch
@@ -450,10 +450,10 @@ begin
                 st1out.value1.use_reg <= '1';
                 st1out.value2.imm <= (others => '0');
 
-                -- link: save $pc+4 in $ra
+                -- link: save $pc+2 in $ra
                 if cur_opcode = opc_jalr then
                     st1out.wr_reg_idx <= ra_reg_idx;
-                    st1out.wr_type <= wr_pc_plus_4_to_ra;
+                    st1out.wr_type <= wr_pc_plus_2_to_ra;
                 end if;
 
             -- TODO: opc_break?
@@ -514,11 +514,11 @@ begin
             when wr_memb_to_reg | wr_memw_to_reg =>
                 -- TODO: stall! (or delay slot)
 
-            when wr_pc_plus_4_to_ra =>
+            when wr_pc_plus_2_to_ra =>
                 if st2in.value1.reg_idx = ra_reg_idx then
-                    st2_reg1_val <= st3in.pc_plus_4;
+                    st2_reg1_val <= st3in.pc_plus_2;
                 elsif st3in.wr_reg_idx = ra_reg_idx then
-                    st2_reg2_val <= st3in.pc_plus_4;
+                    st2_reg2_val <= st3in.pc_plus_2;
                 end if;
 
             when others =>
@@ -579,7 +579,7 @@ begin
     -- forward values from stage 1
     st2out.wr_type      <= st2in.wr_type;
     st2out.wr_reg_idx   <= st2in.wr_reg_idx;
-    st2out.pc_plus_4    <= st2in.pc_plus_4;
+    st2out.pc_plus_2    <= st2in.pc_plus_2;
     st2out.reg2_idx     <= st2in.value2.reg_idx;
     st2out.reg2_val     <= st2_reg2_val;    -- ok, not necessarily from stage 1.
 
@@ -683,8 +683,8 @@ begin
                 st3out.wr_reg_data  <= dram_douta & dram_doutb;
                 st3out.wr_reg_en    <= '1';
 
-            when wr_pc_plus_4_to_ra =>
-                st3out.wr_reg_data  <= "000000" & st3in.pc_plus_4;
+            when wr_pc_plus_2_to_ra =>
+                st3out.wr_reg_data  <= "000000" & st3in.pc_plus_2;
                 st3out.wr_reg_en    <= '1';
 
             when others =>
