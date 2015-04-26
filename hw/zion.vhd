@@ -486,7 +486,7 @@ begin
     end process;
 
     st2_data_hazard_proc : process(st2in.value1, st2in.value2,
-        st3in.wr_type, st3in.wr_reg_idx, st3in.alu_res,
+        st3in.wr_type, st3in.wr_reg_idx, st3in.alu_res, st3in.pc_plus_2,
         st4in.wr_reg_en, st4in.wr_reg_idx, st4in.wr_reg_data)
     begin
         -- default: use values from stage 1
@@ -516,9 +516,9 @@ begin
 
             when wr_pc_plus_2_to_ra =>
                 if st2in.value1.reg_idx = ra_reg_idx then
-                    st2_reg1_val <= st3in.pc_plus_2;
+                    st2_reg1_val <= "000000" & st3in.pc_plus_2;
                 elsif st3in.wr_reg_idx = ra_reg_idx then
-                    st2_reg2_val <= st3in.pc_plus_2;
+                    st2_reg2_val <= "000000" & st3in.pc_plus_2;
                 end if;
 
             when others =>
