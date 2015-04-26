@@ -90,7 +90,7 @@ architecture Behavioral of zion is
 
     type Branch_Type is (b_none, b_always, b_eqz, b_nez);
     type Write_Type is (wr_none, wr_alu_to_reg, wr_memb_to_reg, wr_memw_to_reg,
-        wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_4_to_reg);
+        wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_4_to_ra);
 
     type Stage_1_2_Interface is
         record
@@ -409,7 +409,7 @@ begin
                 -- link: save $pc+4 in $ra
                 if cur_opcode = opc_bal then
                     st1out.wr_reg_idx <= ra_reg_idx;
-                    st1out.wr_type <= wr_pc_plus_4_to_reg;
+                    st1out.wr_type <= wr_pc_plus_4_to_ra;
                 end if;
 
             -- IFmt_Branch
@@ -443,7 +443,7 @@ begin
                 -- link: save $pc+4 in $ra
                 if cur_opcode = opc_jalr then
                     st1out.wr_reg_idx <= ra_reg_idx;
-                    st1out.wr_type <= wr_pc_plus_4_to_reg;
+                    st1out.wr_type <= wr_pc_plus_4_to_ra;
                 end if;
 
             -- TODO: opc_break?
@@ -503,6 +503,13 @@ begin
 
             when wr_memb_to_reg | wr_memw_to_reg =>
                 -- TODO: stall! (or delay slot)
+
+            when wr_pc_plus_4_to_ra =>
+                if st2in.value1.reg_idx = ra_reg_idx then
+                    st2_reg1_val <= st3in.pc_plus_4;
+                elsif st3in.wr_reg_idx = ra_reg_idx then
+                    st2_reg2_val <= st3in.pc_plus_4;
+                end if;
 
             when others =>
                 -- no data hazard
@@ -666,7 +673,7 @@ begin
                 st3out.wr_reg_data  <= dram_douta & dram_doutb;
                 st3out.wr_reg_en    <= '1';
 
-            when wr_pc_plus_4_to_reg =>
+            when wr_pc_plus_4_to_ra =>
                 st3out.wr_reg_data  <= "000000" & st3in.pc_plus_4;
                 st3out.wr_reg_en    <= '1';
 
