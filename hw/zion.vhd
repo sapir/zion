@@ -82,11 +82,27 @@ architecture Behavioral of zion is
     signal rd, rs, rt : Reg_Index;
     signal imm8       : Logic_Byte;
 
+    -- source of register values to use in stage 2
+    -- (from perspective of instruction running in stage 2, though this value
+    -- is set in stage 1)
+    type RegValue_Src is (
+        -- use register value read in stage 1
+        rvs_st1,
+        -- use ALU res passed to stage 3 from previous instruction's stage 2
+        rvs_st3_alu,
+        -- use $pc + 2 value passed to stage 3
+        rvs_st3_pc_plus_2,
+        -- use data currently being written to this register in stage 4
+        rvs_st4_wr_data);
+
     type ImmOrReg_Type is
         record
             imm     : Logic_Word;
             reg_idx : Reg_Index;
             reg_val : Logic_Word;
+            -- source of register value to use, after data hazards are taken
+            -- into account
+            regval_src : RegValue_Src;
             -- if '1', use register. if '0', use immediate value.
             use_reg : std_logic;
         end record;
@@ -493,6 +509,56 @@ begin
         end if;
     end process;
 
+    -- figure out what data hazards stage 2 will encounter.
+    -- do this early (in stage 1) so that stage 2 is shorter.
+    st1_data_hazards_in_st2_proc : process(st1out.value1, st1out.value2,
+        st2in.wr_type, st2in.wr_reg_idx,
+        st3in.wr_type, st3in.wr_reg_idx)
+    begin
+        -- default: use values from stage 1 unless there's a data hazard
+        st1out.value1.regval_src <= rvs_st1;
+        st1out.value2.regval_src <= rvs_st1;
+
+        -- forward from stage 4 (which is currently stage 3)
+        case st3in.wr_type is
+            when wr_alu_to_reg | wr_pc_plus_2_to_ra
+                | wr_memb_to_reg | wr_memw_to_reg =>
+
+                if st3in.wr_reg_idx = st1out.value1.reg_idx then
+                    st1out.value1.regval_src <= rvs_st4_wr_data;
+                elsif st3in.wr_reg_idx = st1out.value2.reg_idx then
+                    st1out.value2.regval_src <= rvs_st4_wr_data;
+                end if;
+
+            when others =>
+                -- no data hazard
+        end case;
+
+        -- forward from stage 3 (which is currently stage 2).
+        -- preferred over stage 4 because it comes later.
+        case st2in.wr_type is
+            when wr_alu_to_reg =>
+                if st2in.wr_reg_idx = st1out.value1.reg_idx then
+                    st1out.value1.regval_src <= rvs_st3_alu;
+                elsif st2in.wr_reg_idx = st1out.value2.reg_idx then
+                    st1out.value2.regval_src <= rvs_st3_alu;
+                end if;
+
+            when wr_memb_to_reg | wr_memw_to_reg =>
+                -- TODO: stall! (or delay slot)
+
+            when wr_pc_plus_2_to_ra =>
+                if ra_reg_idx = st1out.value1.reg_idx then
+                    st1out.value1.regval_src <= rvs_st3_pc_plus_2;
+                elsif ra_reg_idx = st1out.value2.reg_idx then
+                    st1out.value2.regval_src <= rvs_st3_pc_plus_2;
+                end if;
+
+            when others =>
+                -- no data hazard
+        end case;
+    end process;
+
 
     -------------------------------------------------
     -- Stage 2: Execute
@@ -506,43 +572,35 @@ begin
     end process;
 
     st2_data_hazard_proc : process(st2in.value1, st2in.value2,
-        st3in.wr_type, st3in.wr_reg_idx, st3in.alu_res, st3in.pc_plus_2,
-        st4in.wr_reg_en, st4in.wr_reg_idx, st4in.wr_reg_data)
+        st3in.alu_res, st3in.pc_plus_2,
+        st4in.wr_reg_data)
     begin
-        -- default: use values from stage 1
-        st2_reg1_val <= st2in.value1.reg_val;
-        st2_reg2_val <= st2in.value2.reg_val;
+        case st2in.value1.regval_src is
+            when rvs_st1 =>     st2_reg1_val <= st2in.value1.reg_val;
+            when rvs_st3_alu => st2_reg1_val <= st3in.alu_res;
 
-        -- forward from stage 4
-        if st4in.wr_reg_en = '1' then
-            if st4in.wr_reg_idx = st2in.value1.reg_idx then
-                st2_reg1_val <= st4in.wr_reg_data;
-            elsif st4in.wr_reg_idx = st2in.value2.reg_idx then
-                st2_reg2_val <= st4in.wr_reg_data;
-            end if;
-        end if;
+            when rvs_st3_pc_plus_2 =>
+                                st2_reg1_val <= "000000" & st3in.pc_plus_2;
 
-        -- forward from stage 3. (preferred over stage 4)
-        case st3in.wr_type is
-            when wr_alu_to_reg =>
-                if st3in.wr_reg_idx = st2in.value1.reg_idx then
-                    st2_reg1_val <= st3in.alu_res;
-                elsif st3in.wr_reg_idx = st2in.value2.reg_idx then
-                    st2_reg2_val <= st3in.alu_res;
-                end if;
+            when rvs_st4_wr_data =>
+                                st2_reg1_val <= st4in.wr_reg_data;
 
-            when wr_memb_to_reg | wr_memw_to_reg =>
-                -- TODO: stall! (or delay slot)
+            -- impossible
+            when others =>      st2_reg1_val <= (others => '0');
+        end case;
 
-            when wr_pc_plus_2_to_ra =>
-                if st2in.value1.reg_idx = ra_reg_idx then
-                    st2_reg1_val <= "000000" & st3in.pc_plus_2;
-                elsif st3in.wr_reg_idx = ra_reg_idx then
-                    st2_reg2_val <= "000000" & st3in.pc_plus_2;
-                end if;
+        case st2in.value2.regval_src is
+            when rvs_st1 =>     st2_reg2_val <= st2in.value2.reg_val;
+            when rvs_st3_alu => st2_reg2_val <= st3in.alu_res;
 
-            when others =>
-                -- no data hazard
+            when rvs_st3_pc_plus_2 =>
+                                st2_reg2_val <= "000000" & st3in.pc_plus_2;
+
+            when rvs_st4_wr_data =>
+                                st2_reg2_val <= st4in.wr_reg_data;
+
+            -- impossible
+            when others =>      st2_reg2_val <= (others => '0');
         end case;
     end process;
  
