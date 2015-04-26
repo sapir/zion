@@ -18,7 +18,7 @@ RegOffset = namedtuple('RegOffset', 'reg ofs')
 OpcodeStmt = namedtuple('OpcodeStmt', 'opcode operands')
 
 
-MACRO_OPCODES = 'li move'.split()
+MACRO_OPCODES = 'nop li move'.split()
 
 
 def oneOfKeywords(words):
@@ -108,8 +108,12 @@ def _encodeOperand(value, typeName, curStmtIndex, labels):
 
 def expandMacros(stmt):
     if stmt.opcode in ['add', 'sub', 'slt', 'sltu'] and len(stmt.operands) == 2:
+
         rd, rt = stmt.operands
         return [stmt.replace(operands=[rd, rt, rt])]
+
+    elif stmt.opcode == 'nop':
+        return [OpcodeStmt('add', [0, 0, 0])]
 
     elif stmt.opcode == 'li':
         reg, value = stmt.operands
