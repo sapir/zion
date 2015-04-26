@@ -275,7 +275,7 @@ begin
     end process;
 
     -- decide on stage1 outputs
-    st1_output_proc : process(st1in, cur_opcode,
+    st1_output_proc : process(st1in, cur_opcode, st2_branch_flag,
         rd, rs, rt, imm8)
     begin
         -- first set default values
@@ -476,8 +476,8 @@ begin
     end process;
 
     st2_data_hazard_proc : process(st2in.value1, st2in.value2,
-        st3in.wr_type, st3in.wr_reg_idx,
-        st4in.wr_reg_en, st4in.wr_reg_idx)
+        st3in.wr_type, st3in.wr_reg_idx, st3in.alu_res,
+        st4in.wr_reg_en, st4in.wr_reg_idx, st4in.wr_reg_data)
     begin
         -- default: use values from stage 1
         st2_reg1_val <= st2in.value1.reg_val;
@@ -586,7 +586,7 @@ begin
     end process;
 
     st3_data_hazard_proc : process(st3in.reg2_idx, st3in.reg2_val,
-        st4in.wr_reg_en, st4in.wr_reg_idx)
+        st4in.wr_reg_en, st4in.wr_reg_idx, st4in.wr_reg_data)
     begin
         -- default: use values from stage 2
         st3_reg2_val <= st3in.reg2_val;
