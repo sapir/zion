@@ -11,6 +11,16 @@ entity zion is
 end zion;
 
 architecture Behavioral of zion is
+    -- Digital clock manager
+    COMPONENT dcm1
+    PORT(
+        CLKIN_IN : IN std_logic;
+        CLKFX_OUT : OUT std_logic;
+        CLKIN_IBUFG_OUT : OUT std_logic;
+        CLK0_OUT : OUT std_logic
+        );
+    END COMPONENT;
+
     -- Instruction RAM component (actually ROM)
     -- TODO: allow word reads & writes from Instruction RAM using port B
     COMPONENT instr_blkmem
@@ -29,7 +39,7 @@ architecture Behavioral of zion is
         wr_idx : IN std_logic_vector(3 downto 0);
         wr_data : IN std_logic_vector(15 downto 0);
         we : IN std_logic;
-        clk : IN std_logic;          
+        clk : IN std_logic;
         reg1 : OUT std_logic_vector(15 downto 0);
         reg2 : OUT std_logic_vector(15 downto 0)
         );
@@ -62,6 +72,9 @@ architecture Behavioral of zion is
       );
     END COMPONENT;
 
+
+    -- dcm output
+    signal dcm_clk              : std_logic;
 
     signal pc       : MemWordAddr := (others => '0');
 
@@ -230,13 +243,21 @@ architecture Behavioral of zion is
     constant iomem_addr_leds : Logic_Word := "1000000000000000";
 
 begin
+
+    inst_dcm1: dcm1 PORT MAP(
+        CLKIN_IN        => clk,
+        CLKFX_OUT       => dcm_clk,
+        CLKIN_IBUFG_OUT => open,
+        CLK0_OUT        => open
+    );
+
     -------------------------------
     -- Stage 0: Instruction Fetch
     -------------------------------
 
-    st0_sync_proc : process(clk, st1in.next_pc)
+    st0_sync_proc : process(dcm_clk, st1in.next_pc)
     begin
-        if rising_edge(clk) then
+        if rising_edge(dcm_clk) then
             pc <= st1in.next_pc;
         end if;
     end process;
@@ -261,7 +282,7 @@ begin
 
     -- instruction memory
     iram : instr_blkmem PORT MAP (
-        clka => clk,
+        clka => dcm_clk,
         addra => pc,
         douta => st0out.instr);
 
@@ -270,9 +291,9 @@ begin
     -- Stage 1: Instruction Decode + read registers
     -------------------------------------------------
 
-    st1_sync_proc : process(clk)
+    st1_sync_proc : process(dcm_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(dcm_clk) then
             st1in <= st0out;
         end if;
     end process;
@@ -291,7 +312,7 @@ begin
         wr_idx  => st4in.wr_reg_idx,
         wr_data => st4in.wr_reg_data,
         we      => st4in.wr_reg_en,
-        clk     => clk);
+        clk     => dcm_clk);
 
     st1_opcode_proc : process(st1in)
     begin
@@ -593,9 +614,9 @@ begin
     -- Stage 2: Execute
     -------------------------------------------------
 
-    st2_sync_proc : process(clk)
+    st2_sync_proc : process(dcm_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(dcm_clk) then
             st2in <= st1out;
         end if;
     end process;
@@ -695,9 +716,9 @@ begin
     -- Stage 3: Memory
     -------------------------------------------------
 
-    st3_sync_proc : process(clk)
+    st3_sync_proc : process(dcm_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(dcm_clk) then
             st3in <= st2out;
         end if;
     end process;
@@ -792,13 +813,13 @@ begin
     end process;
 
     dram : data_blockmem PORT MAP (
-        clka    => clk,
+        clka    => dcm_clk,
         ena     => dram_ena,
         wea     => dram_wea,
         addra   => dram_addra,
         dina    => dram_dina,
         douta   => dram_douta,
-        clkb    => clk,
+        clkb    => dcm_clk,
         enb     => dram_enb,
         web     => dram_web,
         addrb   => dram_addrb,
@@ -838,9 +859,9 @@ begin
     -- Stage 4: Write-Back
     -------------------------------------------------
 
-    st4_sync_proc : process(clk)
+    st4_sync_proc : process(dcm_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(dcm_clk) then
             st4in <= st3out;
         end if;
     end process;
@@ -852,9 +873,9 @@ begin
     -- I/O
     -------------------------------------------------
 
-    io_leds_proc : process(clk, io_leds_reg.inp, io_leds_reg.we)
+    io_leds_proc : process(dcm_clk, io_leds_reg.inp, io_leds_reg.we)
     begin
-        if rising_edge(clk) then
+        if rising_edge(dcm_clk) then
             if io_leds_reg.we = "1" then
                 io_leds_reg.cur <= io_leds_reg.inp;
             end if;
