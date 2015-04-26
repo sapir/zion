@@ -71,6 +71,7 @@ architecture Behavioral of zion is
             -- next_pc actually also loops back to be used in stage 0
             next_pc     : MemWordAddr;
 
+            -- TODO: isn't this the same thing as next_pc when it matters?
             -- inputs to stage 4
             pc_plus_2   : MemWordAddr;      -- used for branch link
         end record;
@@ -107,7 +108,7 @@ architecture Behavioral of zion is
             use_reg : std_logic;
         end record;
 
-    type Branch_Type is (b_none, b_always, b_eqz, b_nez);
+    type Branch_Type is (b_none, b_always_imm, b_always_reg, b_eqz, b_nez);
     type Write_Type is (wr_none, wr_alu_to_reg, wr_memb_to_reg, wr_memw_to_reg,
         wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_2_to_ra);
 
@@ -123,6 +124,10 @@ architecture Behavioral of zion is
             -- tested will be in value1. (ALU inputs are set to ignore
             -- these values). Branch destination will be calculated by ALU
             branch_type : Branch_Type;
+            -- pc after branch (except for b_always_reg, in which case reg2 is
+            -- used). not calculated using ALU to avoid data hazard detection
+            -- on ALU inputs.
+            branch_dest : MemWordAddr;
 
             -- inputs to stages 3 & 4
             wr_type     : Write_Type;
@@ -238,11 +243,16 @@ begin
 
     st0out.pc_plus_2 <= std_logic_vector(unsigned(pc) + 1);
 
-    st0_comb_proc : process(st0out.pc_plus_2, st2_branch_flag, st2out.alu_res)
+    st0_comb_proc : process(st0out.pc_plus_2, st2_branch_flag,
+            st2in.branch_type, st2in.branch_dest, st2_reg2_val)
     begin
         if st2_branch_flag = '1' then
-            -- truncate result
-            st0out.next_pc <= st2out.alu_res(9 downto 0);
+            if st2in.branch_type = b_always_reg then
+                st0out.next_pc <= st2_reg2_val(9 downto 0);
+            else
+                -- all other branch types calculate the destination in stage 1
+                st0out.next_pc <= st2in.branch_dest;
+            end if;
         else
             -- copy value we're passing to stage 4
             st0out.next_pc <= st0out.pc_plus_2;
@@ -348,6 +358,7 @@ begin
         st1out.value2.reg_idx   <= rt;
         st1out.value2.imm       <= (others => '0');
         st1out.branch_type      <= b_none;
+        st1out.branch_dest      <= (others => '0');
         st1out.wr_type          <= wr_none;
         st1out.wr_reg_idx       <= (others => '0');
         st1out.pc_plus_2        <= st1in.pc_plus_2;
@@ -460,12 +471,12 @@ begin
 
             -- IFmt_JmpRel
             when opc_b | opc_bal =>
-                st1out.branch_type <= b_always;
+                st1out.branch_type <= b_always_imm;
 
-                st1out.alu_op <= aluop_add;
-                st1out.value1.imm <= "000000" & st1in.next_pc;
-                st1out.value2.imm <= Logic_Word(
-                    resize(signed(st1in.instr(10 downto 0)), 16));
+                st1out.branch_dest <= MemWordAddr(
+                    unsigned(st1in.next_pc)
+                    -- TODO: we're ignoring msb of branch offset
+                    + unsigned(st1in.instr(9 downto 0)));
 
                 -- link: save $pc+2 in $ra
                 if cur_opcode = opc_bal then
@@ -482,24 +493,21 @@ begin
                 end if;
 
                 -- branch instruction format is weird.
-                -- also - we'll be using the value of $rt (value2.reg_val) to
-                -- evaluate the branch condition, but the ALU will be ignoring
-                -- this value because we're setting use_reg to '0'. we'll
-                -- provide it with an immediate value instead.
-                st1out.value2.use_reg <= '0';
+                st1out.branch_dest <= MemWordAddr(
+                    unsigned(st1in.next_pc)
+                    + unsigned(resize(signed(st1in.instr(6 downto 0)), 10)));
 
-                st1out.alu_op <= aluop_add;
-                st1out.value1.imm <= "000000" & st1in.next_pc;
-                st1out.value2.imm <= Logic_Word(
-                    resize(signed(st1in.instr(6 downto 0)), 16));
+                -- note we'll be using the value of $rt (value2.reg_val) to
+                -- evaluate the branch condition, but we don't care what the
+                -- ALU sees because we won't be using it.
 
             -- IFmt_JmpReg
             when opc_jr | opc_jalr =>
-                st1out.branch_type <= b_always;
+                st1out.branch_type <= b_always_reg;
 
-                st1out.alu_op <= aluop_add;
-                st1out.value1.use_reg <= '1';
-                st1out.value2.imm <= (others => '0');
+                -- note we'll be using the value of $rt as the branch
+                -- destination, but we don't care what the ALU sees because
+                -- we won't be using it.
 
                 -- link: save $pc+2 in $ra
                 if cur_opcode = opc_jalr then
@@ -622,7 +630,7 @@ begin
     st2_branch_proc : process(st2in, st2_reg2_val)
     begin
         case st2in.branch_type is
-            when b_always =>
+            when b_always_imm | b_always_reg =>
                 st2_branch_flag <= '1';
 
             when b_eqz =>
