@@ -341,20 +341,20 @@ begin
                 when "001" => cur_opcode <= opc_sub;
                 when "010" => cur_opcode <= opc_slt;
                 when "011" => cur_opcode <= opc_sltu;
-                when "100" => cur_opcode <= opc_lb;
-                when "101" => cur_opcode <= opc_lw;
-                when "110" => cur_opcode <= opc_sb;
-                when "111" => cur_opcode <= opc_sw;
+                when "100" => cur_opcode <= opc_li8;
+                when "101" => cur_opcode <= opc_lui;
+                when "110" => cur_opcode <= opc_addi;
+                when "111" => cur_opcode <= opc_ori;
                 when others => cur_opcode <= opc_break;
             end case;
 
         elsif st1in.instr(14) = '0' then
             -- 5-bit opcode. first 2 bits are 10
             case st1in.instr(13 downto 11) is
-                when "000" => cur_opcode <= opc_li8;
-                when "001" => cur_opcode <= opc_lui;
-                when "010" => cur_opcode <= opc_addi;
-                when "011" => cur_opcode <= opc_ori;
+                when "000" => cur_opcode <= opc_lb;
+                when "001" => cur_opcode <= opc_lw;
+                when "010" => cur_opcode <= opc_sb;
+                when "011" => cur_opcode <= opc_sw;
                 when "100" => cur_opcode <= opc_b;
                 when "101" => cur_opcode <= opc_bal;
                 when "110" => cur_opcode <= opc_beqz;
