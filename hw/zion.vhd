@@ -549,7 +549,9 @@ begin
 
                 if st3in.wr_reg_idx = st1out.value1.reg_idx then
                     st1out.value1.regval_src <= rvs_st4_wr_data;
-                elsif st3in.wr_reg_idx = st1out.value2.reg_idx then
+                end if;
+
+                if st3in.wr_reg_idx = st1out.value2.reg_idx then
                     st1out.value2.regval_src <= rvs_st4_wr_data;
                 end if;
 
@@ -563,7 +565,9 @@ begin
             when wr_alu_to_reg =>
                 if st2in.wr_reg_idx = st1out.value1.reg_idx then
                     st1out.value1.regval_src <= rvs_st3_alu;
-                elsif st2in.wr_reg_idx = st1out.value2.reg_idx then
+                end if;
+
+                if st2in.wr_reg_idx = st1out.value2.reg_idx then
                     st1out.value2.regval_src <= rvs_st3_alu;
                 end if;
 
@@ -573,7 +577,9 @@ begin
             when wr_pc_plus_2_to_ra =>
                 if ra_reg_idx = st1out.value1.reg_idx then
                     st1out.value1.regval_src <= rvs_st3_pc_plus_2;
-                elsif ra_reg_idx = st1out.value2.reg_idx then
+                end if;
+
+                if ra_reg_idx = st1out.value2.reg_idx then
                     st1out.value2.regval_src <= rvs_st3_pc_plus_2;
                 end if;
 
