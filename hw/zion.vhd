@@ -90,7 +90,7 @@ architecture Behavioral of zion is
 
     type Branch_Type is (b_none, b_always, b_eqz, b_nez);
     type Write_Type is (wr_none, wr_alu_to_reg, wr_memb_to_reg, wr_memw_to_reg,
-        wr_reg_to_memb, wr_reg_to_memw);
+        wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_4_to_reg);
 
     type Stage_1_2_Interface is
         record
@@ -108,6 +108,7 @@ architecture Behavioral of zion is
             -- inputs to stages 3 & 4
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
+            pc_plus_4   : MemWordAddr;      -- used for branch link
         end record;
     signal st1out, st2in : Stage_1_2_Interface;
 
@@ -133,6 +134,7 @@ architecture Behavioral of zion is
             -- copied from stage1
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
+            pc_plus_4   : MemWordAddr;
             reg2_idx    : Reg_Index;    -- st1out.value2.reg_idx
             reg2_val    : Logic_Word;   -- not necessarily copied from stage1
                                             -- due to data hazard handling
@@ -287,6 +289,7 @@ begin
         st1out.branch_type      <= b_none;
         st1out.wr_type          <= wr_none;
         st1out.wr_reg_idx       <= (others => '0');
+        st1out.pc_plus_4        <= st1in.next_pc;
 
         case cur_opcode is
             -- IFmt_Math3, IFmt_Math2
@@ -403,7 +406,11 @@ begin
                 st1out.value2.imm <= Logic_Word(
                     resize(signed(st1in.instr(10 downto 0)), 16));
 
-                -- TODO: link for bal!
+                -- link: save $pc+4 in $ra
+                if cur_opcode = opc_bal then
+                    st1out.wr_reg_idx <= ra_reg_idx;
+                    st1out.wr_type <= wr_pc_plus_4_to_reg;
+                end if;
 
             -- IFmt_Branch
             when opc_beqz | opc_bnez =>
@@ -433,7 +440,11 @@ begin
                 st1out.value1.use_reg <= '1';
                 st1out.value2.imm <= (others => '0');
 
-                -- TODO: link for jalr!
+                -- link: save $pc+4 in $ra
+                if cur_opcode = opc_jalr then
+                    st1out.wr_reg_idx <= ra_reg_idx;
+                    st1out.wr_type <= wr_pc_plus_4_to_reg;
+                end if;
 
             -- TODO: opc_break?
 
@@ -551,6 +562,7 @@ begin
     -- forward values from stage1
     st2out.wr_type      <= st2in.wr_type;
     st2out.wr_reg_idx   <= st2in.wr_reg_idx;
+    st2out.pc_plus_4    <= st2in.pc_plus_4;
     st2out.reg2_idx     <= st2in.value2.reg_idx;
     st2out.reg2_val     <= st2_reg2_val;    -- ok, not necessarily from stage 1.
 
@@ -652,6 +664,10 @@ begin
 
             when wr_memw_to_reg =>
                 st3out.wr_reg_data  <= dram_douta & dram_doutb;
+                st3out.wr_reg_en    <= '1';
+
+            when wr_pc_plus_4_to_reg =>
+                st3out.wr_reg_data  <= "000000" & st3in.pc_plus_4;
                 st3out.wr_reg_en    <= '1';
 
             when others =>

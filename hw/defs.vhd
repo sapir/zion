@@ -11,6 +11,9 @@ package defs is
 
 	subtype Reg_Index is std_logic_vector(3 downto 0);
 
+	-- index of $ra
+	constant ra_reg_idx : Reg_Index := "1111";
+
 	subtype u16 is unsigned(15 downto 0);
 	subtype u8 is unsigned(7 downto 0);
 	subtype u4 is unsigned(3 downto 0);
