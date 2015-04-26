@@ -131,7 +131,22 @@ architecture Behavioral of zion is
             -- copied from stage 0
             pc_plus_2   : MemWordAddr;
         end record;
-    signal st1out, st2in : Stage_1_2_Interface;
+    -- explicit initialization to avoid an optimization warning
+    signal st1out, st2in : Stage_1_2_Interface
+        := (alu_op      => aluop_add,
+            value1      => (imm => (others => '0'),
+                            reg_idx => (others => '0'),
+                            reg_val => (others => '0'),
+                            regval_src => rvs_st1,
+                            use_reg => '0'),
+            value2      => (imm => (others => '0'),
+                            reg_idx => (others => '0'),
+                            reg_val => (others => '0'),
+                            regval_src => rvs_st1,
+                            use_reg => '0'),
+            branch_type => b_none,
+            wr_type     => wr_none,
+            others      => (others => '0'));
 
 
     -- value of $rs and $rt for stage 2. may be different from
