@@ -70,6 +70,9 @@ architecture Behavioral of zion is
             instr       : Logic_Word;
             -- next_pc actually also loops back to be used in stage 0
             next_pc     : MemWordAddr;
+
+            -- inputs to stage 4
+            pc_plus_4   : MemWordAddr;      -- used for branch link
         end record;
     signal st0out, st1in : Stage_0_1_Interface;
 
@@ -108,7 +111,9 @@ architecture Behavioral of zion is
             -- inputs to stages 3 & 4
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
-            pc_plus_4   : MemWordAddr;      -- used for branch link
+
+            -- copied from stage 0
+            pc_plus_4   : MemWordAddr;
         end record;
     signal st1out, st2in : Stage_1_2_Interface;
 
@@ -131,12 +136,14 @@ architecture Behavioral of zion is
         record
             alu_res     : Logic_Word;
 
-            -- copied from stage1
+            -- copied from stage 0
+            pc_plus_4   : MemWordAddr;
+
+            -- copied from stage 1
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
-            pc_plus_4   : MemWordAddr;
             reg2_idx    : Reg_Index;    -- st1out.value2.reg_idx
-            reg2_val    : Logic_Word;   -- not necessarily copied from stage1
+            reg2_val    : Logic_Word;   -- not necessarily copied from stage 1
                                             -- due to data hazard handling
         end record;
     signal st2out, st3in : Stage_2_3_Interface;
@@ -178,13 +185,16 @@ begin
         end if;
     end process;
 
-    st0_comb_proc : process(pc, st2_branch_flag, st2out.alu_res)
+    st0out.pc_plus_4 <= std_logic_vector(unsigned(pc) + 1);
+
+    st0_comb_proc : process(st0out.pc_plus_4, st2_branch_flag, st2out.alu_res)
     begin
         if st2_branch_flag = '1' then
             -- truncate result
             st0out.next_pc <= st2out.alu_res(9 downto 0);
         else
-            st0out.next_pc <= std_logic_vector(unsigned(pc) + 1);
+            -- copy value we're passing to stage 4
+            st0out.next_pc <= st0out.pc_plus_4;
         end if;
     end process;
 
@@ -274,7 +284,7 @@ begin
         end if; -- opcode width
     end process;
 
-    -- decide on stage1 outputs
+    -- decide on stage 1 outputs
     st1_output_proc : process(st1in, cur_opcode, st2_branch_flag,
         rd, rs, rt, imm8)
     begin
@@ -289,7 +299,7 @@ begin
         st1out.branch_type      <= b_none;
         st1out.wr_type          <= wr_none;
         st1out.wr_reg_idx       <= (others => '0');
-        st1out.pc_plus_4        <= st1in.next_pc;
+        st1out.pc_plus_4        <= st1in.pc_plus_4;
 
         case cur_opcode is
             -- IFmt_Math3, IFmt_Math2
@@ -566,7 +576,7 @@ begin
         b   => alu_inp2,    -- decided in st2_alu_proc
         res => st2out.alu_res);
 
-    -- forward values from stage1
+    -- forward values from stage 1
     st2out.wr_type      <= st2in.wr_type;
     st2out.wr_reg_idx   <= st2in.wr_reg_idx;
     st2out.pc_plus_4    <= st2in.pc_plus_4;
