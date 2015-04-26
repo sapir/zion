@@ -173,6 +173,26 @@ architecture Behavioral of zion is
     signal st3out, st4in : Stage_3_4_Interface;
 
 
+    -- I/O memory
+
+    -- byte-sized I/O register. cur gets set to inp if we is "1".
+    type IO_Register_Byte is
+        record
+            cur : Logic_Byte;
+            inp : Logic_Byte;
+            -- using a vector to make initialization easier
+            we  : std_logic_vector(0 downto 0);
+        end record;
+
+    signal io_leds_reg : IO_Register_Byte
+        := (others => (others => '0'));
+
+    ------------------------------------------
+    -- Memory-mapped I/O addresses (MSB is 1)
+    ------------------------------------------
+    -- LEDs bitmask. byte-only and write-only.
+    constant iomem_addr_leds : Logic_Word := "1000000000000000";
+
 begin
     -------------------------------
     -- Stage 0: Instruction Fetch
@@ -608,49 +628,80 @@ begin
     end process;
 
     st3_dram_inps_proc : process(st3in, st3_reg2_val)
-        -- address to use (truncated value of alu_res)
-        variable addr0  : MemByteAddr;
+        -- 16-bit address of first byte we're reading/writing
+        variable addr0 : Logic_Word;
         -- address following addr0
-        variable addr1  : MemByteAddr;
-    begin
-        addr0 := st3in.alu_res(10 downto 0);
-        addr1 := MemByteAddr(unsigned(addr0) + 1);
+        variable addr1 : Logic_Word;
 
-        -- default values:
-        dram_ena    <= '0';
-        dram_wea    <= "0";
-        dram_addra  <= addr0;
-        dram_dina   <= (others => '0');
-        dram_enb    <= '0';
-        dram_web    <= "0";
-        dram_addrb  <= addr1;
-        dram_dinb   <= (others => '0');
+        -- bytes to be written at addr0, addr1
+        variable byte0, byte1 : Logic_Byte;
+    begin
+        addr0 := st3in.alu_res;
+        addr1 := Logic_Word(u16(addr0) + 1);
 
         case st3in.wr_type is
             when wr_reg_to_memb =>
-                dram_ena    <= '1';
-                dram_wea    <= "1";
                 -- write register's low byte
-                dram_dina   <= st3_reg2_val(7 downto 0);
+                byte0 := st3_reg2_val(7 downto 0);
+                byte1 := (others => '0');
 
             when wr_reg_to_memw =>
-                dram_ena    <= '1';
-                dram_wea    <= "1";
-                dram_dina   <= st3_reg2_val(15 downto 8);
-                dram_enb    <= '1';
-                dram_web    <= "1";
-                dram_dinb   <= st3_reg2_val(7 downto 0);
-
-            when wr_memb_to_reg =>
-                dram_ena    <= '1';
-
-            when wr_memw_to_reg =>
-                dram_ena    <= '1';
-                dram_enb    <= '1';
+                byte0 := st3_reg2_val(15 downto 8);
+                byte1 := st3_reg2_val(7 downto 0);
 
             when others =>
-                -- use defaults
+                -- not really writing anything
+                byte0 := (others => '0');
+                byte1 := (others => '0');
         end case;
+
+        -- default values:
+        dram_ena        <= '0';
+        dram_wea        <= "0";
+        dram_addra      <= addr0(10 downto 0);
+        dram_dina       <= (others => '0');
+        dram_enb        <= '0';
+        dram_web        <= "0";
+        dram_addrb      <= addr1(10 downto 0);
+        dram_dinb       <= (others => '0');
+        io_leds_reg.inp <= (others => '0');
+        io_leds_reg.we  <= "1";
+
+        if addr0(15) = '1' then
+            -- Memory-mapped IO
+
+            if addr0 = iomem_addr_leds and st3in.wr_type = wr_reg_to_memb then
+                io_leds_reg.inp <= byte0;
+                io_leds_reg.we <= "1";
+            end if;
+        else
+            -- Regular memory
+
+            case st3in.wr_type is
+                when wr_reg_to_memb =>
+                    dram_ena    <= '1';
+                    dram_wea    <= "1";
+                    dram_dina   <= byte0;
+
+                when wr_reg_to_memw =>
+                    dram_ena    <= '1';
+                    dram_wea    <= "1";
+                    dram_dina   <= byte0;
+                    dram_enb    <= '1';
+                    dram_web    <= "1";
+                    dram_dinb   <= byte1;
+
+                when wr_memb_to_reg =>
+                    dram_ena    <= '1';
+
+                when wr_memw_to_reg =>
+                    dram_ena    <= '1';
+                    dram_enb    <= '1';
+
+                when others =>
+                    -- use defaults
+            end case;
+        end if;
     end process;
 
     dram : data_blockmem PORT MAP (
@@ -714,7 +765,15 @@ begin
     -- I/O
     -------------------------------------------------
 
-    -- force registers to an output so entire design isn't optimized away.
-    -- TODO: memory-mapped IO instead
-    leds <= std_logic_vector(st1out.value1.reg_val(7 downto 0));
+    io_leds_proc : process(clk, io_leds_reg.inp, io_leds_reg.we)
+    begin
+        if rising_edge(clk) then
+            if io_leds_reg.we = "1" then
+                io_leds_reg.cur <= io_leds_reg.inp;
+            end if;
+        end if;
+    end process;
+
+    leds <= io_leds_reg.cur;
+
 end Behavioral;
