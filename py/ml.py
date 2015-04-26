@@ -135,7 +135,7 @@ NICE_REGISTER_NAMES = dict(
         '$zero $sp $s0 $s1'
         ' $a0 $a1 $v0 $v1'
         ' $a2 $a3 $v2 $v3'
-        ' $s2 $s3 $ra $fp'
+        ' $s2 $s3 $fp $ra'
         .split()))
 
 NUM_REGISTERS = len(NICE_REGISTER_NAMES)
