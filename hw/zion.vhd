@@ -802,7 +802,7 @@ begin
         dram_addrb      <= addr1(10 downto 0);
         dram_dinb       <= (others => '0');
         io_leds_reg.inp <= (others => '0');
-        io_leds_reg.we  <= "1";
+        io_leds_reg.we  <= "0";
 
         if addr0(15) = '1' then
             -- Memory-mapped IO
