@@ -625,9 +625,6 @@ begin
 
         -- handle control hazard: invalidate instruction following
         -- successful branch
-        -- TODO: consider putting the branch flag in st2out and then
-        -- invalidating instruction after it reaches stage 2 using
-        -- st3in.branch_flag. may make design faster.
         if st2_branch_flag = '1' then
             st1out.invalid_flag <= '1';
         end if;
