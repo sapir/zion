@@ -6,8 +6,7 @@ use IEEE.NUMERIC_STD.all;
 package defs is
 	subtype Logic_Byte is std_logic_vector(7 downto 0);
 	subtype Logic_Word is std_logic_vector(15 downto 0);
-	subtype MemByteAddr is std_logic_vector(10 downto 0);
-	subtype MemWordAddr is std_logic_vector(9 downto 0);
+	subtype MemWordAddr is std_logic_vector(12 downto 0);
 
 	subtype Reg_Index is std_logic_vector(3 downto 0);
 

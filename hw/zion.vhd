@@ -22,13 +22,20 @@ architecture Behavioral of zion is
     END COMPONENT;
 
     -- Instruction RAM component (actually ROM)
-    -- TODO: allow word reads & writes from Instruction RAM using port B
     COMPONENT instr_blkmem
-      PORT (
+    PORT (
         clka : IN STD_LOGIC;
-        addra : IN STD_LOGIC_VECTOR(9 DOWNTO 0);
-        douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
-      );
+        wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+        addra : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
+        dina : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+        clkb : IN STD_LOGIC;
+        enb : IN STD_LOGIC;
+        web : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+        addrb : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
+        dinb : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        doutb : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
+        );
     END COMPONENT;
 
     -- Registers component
@@ -211,8 +218,13 @@ architecture Behavioral of zion is
     signal st2out, st3in : Stage_2_3_Interface;
 
 
+    -- memory object to use for memory read/write operations
+    type MemObject_Type is (mo_dram, mo_iram, mo_io);
+
     -- value of $rt for stage 3. same idea as st2_reg2_val above.
     signal st3_reg2_val : Logic_Word;
+    -- memory object to use for current operation in stage 3
+    signal cur_memobj   : MemObject_Type;
     -- dram inputs (copied from component definition)
     signal dram_ena     : STD_LOGIC;
     signal dram_wea     : STD_LOGIC_VECTOR(0 DOWNTO 0);
@@ -225,6 +237,13 @@ architecture Behavioral of zion is
     -- dram outputs (copied from component definition)
     signal dram_douta   : STD_LOGIC_VECTOR(7 DOWNTO 0);
     signal dram_doutb   : STD_LOGIC_VECTOR(7 DOWNTO 0);
+    -- iram port b inputs (copied from component definition)
+    signal iram_enb     : STD_LOGIC;
+    signal iram_web     : STD_LOGIC_VECTOR(0 DOWNTO 0);
+    signal iram_addrb   : STD_LOGIC_VECTOR(12 DOWNTO 0);
+    signal iram_dinb    : STD_LOGIC_VECTOR(15 DOWNTO 0);
+    -- iram port b output (copied from component definition)
+    signal iram_doutb   : STD_LOGIC_VECTOR(15 DOWNTO 0);
 
     type Stage_3_4_Interface is
         record
@@ -282,7 +301,7 @@ begin
     begin
         if st2_branch_flag = '1' then
             if st2in.branch_type = b_always_reg then
-                st0out.next_pc <= st2_reg2_val(9 downto 0);
+                st0out.next_pc <= st2_reg2_val(12 downto 0);
             else
                 -- all other branch types calculate the destination in stage 1
                 st0out.next_pc <= st2in.branch_dest;
@@ -299,9 +318,21 @@ begin
 
     -- instruction memory
     iram : instr_blkmem PORT MAP (
-        clka => dcm_clk,
-        addra => pc,
-        douta => st0out.instr);
+        clka    => dcm_clk,
+        addra   => pc,
+        douta   => st0out.instr,
+
+        wea     => "0",
+        dina    => (others => '0'),
+
+        -- port b is used in stage 3:
+        clkb    => dcm_clk,
+        enb     => iram_enb,
+        web     => iram_web,
+        addrb   => iram_addrb,
+        dinb    => iram_dinb,
+        doutb   => iram_doutb
+        );
 
 
     -------------------------------------------------
@@ -513,8 +544,7 @@ begin
 
                 st1out.branch_dest <= MemWordAddr(
                     unsigned(st1in.next_pc)
-                    -- TODO: we're ignoring msb of branch offset
-                    + unsigned(st1in.instr(9 downto 0)));
+                    + ("00" & unsigned(st1in.instr(10 downto 0))));
 
                 -- link: save $pc+2 in $ra
                 if cur_opcode = opc_bal then
@@ -533,7 +563,7 @@ begin
                 -- branch instruction format is weird.
                 st1out.branch_dest <= MemWordAddr(
                     unsigned(st1in.next_pc)
-                    + unsigned(resize(signed(st1in.instr(6 downto 0)), 10)));
+                    + unsigned(resize(signed(st1in.instr(6 downto 0)), 13)));
 
                 -- note we'll be using the value of $rt (value2.reg_val) to
                 -- evaluate the branch condition, but we don't care what the
@@ -651,7 +681,7 @@ begin
             when rvs_st3_alu => st2_reg1_val <= st3in.alu_res;
 
             when rvs_st3_pc_plus_2 =>
-                                st2_reg1_val <= "000000" & st3in.pc_plus_2;
+                                st2_reg1_val <= "000" & st3in.pc_plus_2;
 
             when rvs_st4_wr_data =>
                                 st2_reg1_val <= st4in.wr_reg_data;
@@ -665,7 +695,7 @@ begin
             when rvs_st3_alu => st2_reg2_val <= st3in.alu_res;
 
             when rvs_st3_pc_plus_2 =>
-                                st2_reg2_val <= "000000" & st3in.pc_plus_2;
+                                st2_reg2_val <= "000" & st3in.pc_plus_2;
 
             when rvs_st4_wr_data =>
                                 st2_reg2_val <= st4in.wr_reg_data;
@@ -762,68 +792,75 @@ begin
     end process;
 
     st3_dram_inps_proc : process(st3in, st3_reg2_val)
-        -- 16-bit address of first byte we're reading/writing
-        variable addr0 : Logic_Word;
-        -- address following addr0
-        variable addr1 : Logic_Word;
+        -- 16-bit address we're reading/writing
+        constant mem_addr   : Logic_Word    := st3in.alu_res;
 
-        -- bytes to be written at addr0, addr1
-        variable byte0, byte1 : Logic_Byte;
+        -- value to be written to mem_addr (when writing)
+        constant wr_val     : Logic_Word    := st3_reg2_val;
+
+        -- hi & lo bytes of wr_val
+        constant wr_val_hi  : Logic_Byte    := wr_val(15 downto 8);
+        constant wr_val_lo  : Logic_Byte    := wr_val(7 downto 0);
+
     begin
-        addr0 := st3in.alu_res;
-        addr1 := Logic_Word(u16(addr0) + 1);
-
-        case st3in.wr_type is
-            when wr_reg_to_memb =>
-                -- write register's low byte
-                byte0 := st3_reg2_val(7 downto 0);
-                byte1 := (others => '-');
-
-            when wr_reg_to_memw =>
-                byte0 := st3_reg2_val(15 downto 8);
-                byte1 := st3_reg2_val(7 downto 0);
-
-            when others =>
-                -- not really writing anything
-                byte0 := (others => '-');
-                byte1 := (others => '-');
-        end case;
-
         -- default values:
         dram_ena        <= '0';
         dram_wea        <= "0";
-        dram_addra      <= addr0(10 downto 0);
+        dram_addra      <= mem_addr(10 downto 0);
         dram_dina       <= (others => '-');
         dram_enb        <= '0';
         dram_web        <= "0";
-        dram_addrb      <= addr1(10 downto 0);
+        dram_addrb      <= std_logic_vector(unsigned(dram_addra) + 1);
         dram_dinb       <= (others => '-');
+        iram_enb        <= '0';
+        iram_web        <= "0";
+        iram_addrb      <= mem_addr(13 downto 1);   -- ignore lsb
+        iram_dinb       <= (others => '-');
         io_leds_reg.inp <= (others => '-');
         io_leds_reg.we  <= "0";
 
-        if addr0(15) = '1' then
+        if mem_addr(15) = '1' then
             -- Memory-mapped IO
+            cur_memobj <= mo_io;
 
-            if addr0 = iomem_addr_leds and st3in.wr_type = wr_reg_to_memb then
-                io_leds_reg.inp <= byte0;
+            -- only byte writes are supported
+            if mem_addr = iomem_addr_leds and st3in.wr_type = wr_reg_to_memb then
+                io_leds_reg.inp <= wr_val_lo;
                 io_leds_reg.we <= "1";
             end if;
+        elsif mem_addr(14) = '1' then
+            -- Instruction memory
+            cur_memobj <= mo_iram;
+
+            -- only word read/writes are supported
+            case st3in.wr_type is
+                when wr_reg_to_memw =>
+                    iram_enb    <= '1';
+                    iram_web    <= "1";
+
+                when wr_memw_to_reg =>
+                    iram_enb    <= '1';
+
+                when others =>
+                    -- use defaults
+            end case;
         else
             -- Regular memory
+            cur_memobj <= mo_dram;
 
             case st3in.wr_type is
                 when wr_reg_to_memb =>
                     dram_ena    <= '1';
                     dram_wea    <= "1";
-                    dram_dina   <= byte0;
+                    dram_dina   <= wr_val_lo;
 
                 when wr_reg_to_memw =>
                     dram_ena    <= '1';
                     dram_wea    <= "1";
-                    dram_dina   <= byte0;
+                    dram_dina   <= wr_val_hi;
                     dram_enb    <= '1';
                     dram_web    <= "1";
-                    dram_dinb   <= byte1;
+                    dram_dinb   <= wr_val_lo;
 
                 when wr_memb_to_reg =>
                     dram_ena    <= '1';
@@ -853,7 +890,8 @@ begin
         doutb   => dram_doutb
       );
 
-    st3_output_proc : process(st3in, dram_douta, dram_doutb)
+    st3_output_proc : process(st3in, dram_douta, dram_doutb, iram_doutb,
+        cur_memobj)
     begin
         case st3in.wr_type is
             when wr_alu_to_reg =>
@@ -865,11 +903,17 @@ begin
                 st3out.wr_reg_en    <= '1';
 
             when wr_memw_to_reg =>
-                st3out.wr_reg_data  <= dram_douta & dram_doutb;
+                if cur_memobj = mo_iram then
+                    st3out.wr_reg_data <= iram_doutb;
+                else
+                    -- assume dram - I/O doesn't support reads
+                    st3out.wr_reg_data <= dram_douta & dram_doutb;
+                end if;
+
                 st3out.wr_reg_en    <= '1';
 
             when wr_pc_plus_2_to_ra =>
-                st3out.wr_reg_data  <= "000000" & st3in.pc_plus_2;
+                st3out.wr_reg_data  <= "000" & st3in.pc_plus_2;
                 st3out.wr_reg_en    <= '1';
 
             when others =>
