@@ -777,7 +777,7 @@ begin
             when wr_reg_to_memb =>
                 -- write register's low byte
                 byte0 := st3_reg2_val(7 downto 0);
-                byte1 := (others => '0');
+                byte1 := (others => '-');
 
             when wr_reg_to_memw =>
                 byte0 := st3_reg2_val(15 downto 8);
@@ -785,20 +785,20 @@ begin
 
             when others =>
                 -- not really writing anything
-                byte0 := (others => '0');
-                byte1 := (others => '0');
+                byte0 := (others => '-');
+                byte1 := (others => '-');
         end case;
 
         -- default values:
         dram_ena        <= '0';
         dram_wea        <= "0";
         dram_addra      <= addr0(10 downto 0);
-        dram_dina       <= (others => '0');
+        dram_dina       <= (others => '-');
         dram_enb        <= '0';
         dram_web        <= "0";
         dram_addrb      <= addr1(10 downto 0);
-        dram_dinb       <= (others => '0');
-        io_leds_reg.inp <= (others => '0');
+        dram_dinb       <= (others => '-');
+        io_leds_reg.inp <= (others => '-');
         io_leds_reg.we  <= "0";
 
         if addr0(15) = '1' then
@@ -873,7 +873,7 @@ begin
                 st3out.wr_reg_en    <= '1';
 
             when others =>
-                st3out.wr_reg_data  <= (others => '0');
+                st3out.wr_reg_data  <= (others => '-');
                 st3out.wr_reg_en    <= '0';
         end case;
 
