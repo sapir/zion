@@ -128,10 +128,8 @@ begin
         -- first set default values
         st1out.alu_op           <= aluop_add;
         st1out.value1.use_reg   <= '0';
-        st1out.value1.reg_idx   <= rs;
         st1out.value1.imm       <= (others => '0');
         st1out.value2.use_reg   <= '0';
-        st1out.value2.reg_idx   <= rt;
         st1out.value2.imm       <= (others => '0');
         st1out.branch_type      <= b_none;
         st1out.branch_dest      <= (others => '-');

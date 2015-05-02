@@ -62,7 +62,6 @@ package defs is
     type ImmOrReg_Type is
         record
             imm     : Logic_Word;
-            reg_idx : Reg_Index;
             reg_val : Logic_Word;
             -- if '1', use register. if '0', use immediate value.
             use_reg : std_logic;
@@ -106,11 +105,9 @@ package defs is
         := (invalid_flag => '0',
             alu_op      => aluop_add,
             value1      => (imm => (others => '0'),
-                            reg_idx => (others => '0'),
                             reg_val => (others => '0'),
                             use_reg => '0'),
             value2      => (imm => (others => '0'),
-                            reg_idx => (others => '0'),
                             reg_val => (others => '0'),
                             use_reg => '0'),
             branch_type => b_none,
