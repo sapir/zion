@@ -171,7 +171,7 @@ begin
                 wr_reg_en    <= '1';
 
             when wr_pc_plus_2_to_ra =>
-                wr_reg_data  <= "000" & st3in.pc_plus_2;
+                wr_reg_data  <= mem_addr_to_word(st3in.pc_plus_2);
                 wr_reg_en    <= '1';
 
             when others =>
