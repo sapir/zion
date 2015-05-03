@@ -96,8 +96,6 @@ package defs is
             -- inputs to stages 3 & 4
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
-
-            -- copied from stage 0
             pc_plus_2   : MemWordAddr;
         end record;
 
@@ -119,9 +117,6 @@ package defs is
         record
             alu_res     : Logic_Word;
 
-            -- copied from stage 0
-            pc_plus_2   : MemWordAddr;
-
             -- copied from stage 1
             wr_type     : Write_Type;   -- rather than forward invalid_flag to
                                             -- stage 3, this just gets set to
@@ -129,6 +124,7 @@ package defs is
             wr_reg_idx  : Reg_Index;
             reg2_val    : Logic_Word;   -- not necessarily copied from stage 1
                                             -- due to data hazard handling
+            pc_plus_2   : MemWordAddr;
         end record;
 
 
