@@ -26,7 +26,8 @@ def asSigned(bits, val):
 class EmulatorBreak(Exception): pass
 
 class ZionEmulator(object):
-    def __init__(self, memorySize=2048):
+    # TODO: data, instruction, I/O memory
+    def __init__(self, memorySize=65536):
         self.memorySize = memorySize
         self.mem = [0] * self.memorySize
 
