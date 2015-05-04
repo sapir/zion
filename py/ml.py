@@ -16,7 +16,7 @@ IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
 # memory access - 2 regs + 3-bit signed offset
 # (for lw/sw, offset must be aligned anyway, so we can multiply by 2)
 IFmt_Mem = InstrFormat('memory access',
-    (5, 3,4,4), 'reg regofs', [0,3,2,1])
+    (5, 7,4), 'reg regofs', [0,2,1])
 IFmt_JmpRel = InstrFormat('jump to relative address',
     (5, 11), 'addr11', None)
 IFmt_Branch = InstrFormat('branch (cond. jump)',

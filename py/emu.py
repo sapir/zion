@@ -115,31 +115,33 @@ class ZionEmulator(object):
         rtVal = self.regs[rt]
         self.regs[rd] = 1 if (rsVal < rtVal) else 0
 
-    @staticmethod
-    def _getRegOffsetAddr(rs, ofs):
+    def _getRegOffsetAddr(self, rs_ofs):
+        ofs = rs_ofs >> 4
+        rs = rs_ofs & 0xf
+
         addr = self.regs[rs]
         assert addr % 2 == 0, "unaligned memory access"
-        addr += asSigned(4, ofs)
+        addr += asSigned(3, ofs)
         addr &= 0xffff
         return addr
 
-    def do_lb(self, rd, rs, ofs):
+    def do_lb(self, rd, rs_ofs):
         if rd == 0:
             return
 
-        self.regs[rd] = self.mem[self._getRegOffsetAddr(rs, ofs)]
+        self.regs[rd] = self.mem[self._getRegOffsetAddr(rs_ofs)]
 
-    def do_sb(self, rd, rs, ofs):
-        self.mem[self._getRegOffsetAddr(rs, ofs)] = self.regs[rd]
+    def do_sb(self, rd, rs_ofs):
+        self.mem[self._getRegOffsetAddr(rs_ofs)] = self.regs[rd]
 
-    def do_lw(self, rd, rs, ofs):
+    def do_lw(self, rd, rs_ofs):
         if rd == 0:
             return
 
-        self.regs[rd] = self.getMemWord(self._getRegOffsetAddr(rs, ofs))
+        self.regs[rd] = self.getMemWord(self._getRegOffsetAddr(rs_ofs))
 
-    def do_sw(self, rd, rs, ofs):
-        self.setMemWord(self._getRegOffsetAddr(rs, ofs), self.regs[rd])
+    def do_sw(self, rd, rs_ofs):
+        self.setMemWord(self._getRegOffsetAddr(rs_ofs), self.regs[rd])
 
     def do_li8(self, rd, imm):
         self.regs[rd] = imm

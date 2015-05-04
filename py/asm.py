@@ -52,9 +52,9 @@ grRegOffset.setParseAction(
     lambda s,loc,toks: RegOffset(toks['reg'], toks['ofs']))
 
 grOperand = (
-    grRegister("reg")
+    grRegOffset("regofs")
+    | grRegister("reg")
     | grImmediate("imm")
-    | grRegOffset("ofs")
     | grLabelName("label"))
 grOperand.setParseAction(lambda s,loc,toks: toks[0])
 
@@ -75,13 +75,13 @@ def _encodeOperand(value, typeName, curStmtIndex, labels):
 
     elif typeName == 'regofs':
         assert isinstance(value, RegOffset)
-        regNum = _encodeOperand(value.reg)
+        regNum = _encodeOperand(value.reg, 'reg', curStmtIndex, labels)
 
         ofs = value.ofs
         assert -8 <= ofs < 8
         ofs &= 0xf      # cast to unsigned
 
-        return (regNum << 4) | ofs
+        return (ofs << 4) | regNum
 
     elif typeName == 'imm8':
         assert 0x00 <= value <= 0xff
