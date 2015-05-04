@@ -144,7 +144,7 @@ def expandMacros(stmt):
     return [stmt]
 
 def assemble(code):
-    allStmts = grProgram.parseString(testProg, parseAll=True)
+    allStmts = grProgram.parseString(code, parseAll=True)
 
     # first pass: find labels, expand macros
     labels = {}
@@ -179,12 +179,16 @@ def assemble(code):
 
 
 if __name__ == '__main__':
-    testProg = open('test.s', 'r').read()
-    words = assemble(testProg)
+    import sys
+    from struct import pack
 
-    from emu import ZionEmulator
-    emu = ZionEmulator()
-    emu.setMem(*words)
-    emu.run()
 
-    print(emu.regs)
+    inpFilename, outFilename = sys.argv[1:]
+
+    code = open(inpFilename).read()
+
+    words = assemble(code)
+
+    out = open(outFilename, 'wb')
+    for w in words:
+        out.write(pack('>H', w))
