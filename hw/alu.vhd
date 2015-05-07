@@ -30,8 +30,8 @@ begin
         num_a or num_b                          when aluop_or,
         num_a nor num_b                         when aluop_nor,
         num_a xor num_b                         when aluop_xor,
-        shift_left(num_a,  to_integer(num_b))   when aluop_sll,
-        shift_right(num_a, to_integer(num_b))   when aluop_srl,
+        shift_left(num_b,  to_integer(num_a))   when aluop_sll,
+        shift_right(num_b, to_integer(num_a))   when aluop_srl,
         resize(unsigned(a_lt_b), 16)            when aluop_slt,
         resize(unsigned(a_ltu_b), 16)           when aluop_sltu,
         (others => '0')                         when others;

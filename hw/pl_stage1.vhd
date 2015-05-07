@@ -39,9 +39,15 @@ architecture Behavioral of pl_stage1 is
     signal pc_plus_2    : MemWordAddr;
     signal next_pc      : MemWordAddr;
     signal cur_opcode   : Opcode_Type;
-    -- some instruction fields that are useful to multiple instructions
+
+    -- instruction fields
+    signal opcode_fld   : std_logic_vector(5 downto 0);
+    signal opcode_grp   : std_logic_vector(1 downto 0);
     signal rd, rs, rt   : Reg_Index;
     signal imm8         : Logic_Byte;
+    signal addr12       : std_logic_vector(11 downto 0);
+    signal addr8        : std_logic_vector(7 downto 0);
+    signal link_flag    : std_logic;  -- part of jump opcodes
 begin
 
     sync_proc : process(clk)
@@ -55,10 +61,16 @@ begin
 
     iram_addr <= pc;
 
-    rd <= iram_dout(11 downto 8);
-    rs <= iram_dout(7 downto 4);
-    rt <= iram_dout(3 downto 0);
-    imm8 <= iram_dout(11 downto 4);
+    opcode_fld <= iram_dout(17 downto 12);
+    rd         <= iram_dout(11 downto 8);
+    rs         <= iram_dout( 7 downto 4);
+    rt         <= iram_dout( 3 downto 0);
+    imm8       <= iram_dout(11 downto 4);
+    addr12     <= iram_dout(11 downto 0);
+    addr8      <= iram_dout(11 downto 4);
+    link_flag  <= iram_dout(12);
+
+    opcode_grp <= opcode_fld(5 downto 4);
 
     -- feed parts of IRAM output into Register File inputs
     reg_idx1 <= rs;
@@ -69,61 +81,46 @@ begin
     st1out.value2.reg_val <= reg_dout2;
 
 
-    opcode_proc : process(iram_dout)
-    begin
-        cur_opcode <= opc_break; -- catch-all
-        if iram_dout(15) = '0' then
-            -- 4-bit opcode. first bit is 0
-            case iram_dout(14 downto 12) is
-                when "000" => cur_opcode <= opc_add;
-                when "001" => cur_opcode <= opc_sub;
-                when "010" => cur_opcode <= opc_slt;
-                when "011" => cur_opcode <= opc_sltu;
-                when "100" => cur_opcode <= opc_li8;
-                when "101" => cur_opcode <= opc_lui;
-                when "110" => cur_opcode <= opc_addi;
-                when "111" => cur_opcode <= opc_ori;
-                when others => cur_opcode <= opc_break;
-            end case;
+    with opcode_fld select cur_opcode <=
+        opc_add     when "000000",
+        opc_sub     when "000001",
+        opc_slt     when "000010",
+        opc_sltu    when "000011",
+        opc_and     when "000100",
+        opc_or      when "000101",
+        opc_nor     when "000110",
+        opc_xor     when "000111",
+        opc_sll     when "001000",
+        opc_srl     when "001001",
+        opc_exts    when "001010",
 
-        elsif iram_dout(14) = '0' then
-            -- 5-bit opcode. first 2 bits are 10
-            case iram_dout(13 downto 11) is
-                when "000" => cur_opcode <= opc_lb;
-                when "001" => cur_opcode <= opc_lw;
-                when "010" => cur_opcode <= opc_sb;
-                when "011" => cur_opcode <= opc_sw;
-                when "100" => cur_opcode <= opc_b;
-                when "101" => cur_opcode <= opc_bal;
-                when "110" => cur_opcode <= opc_beqz;
-                when "111" => cur_opcode <= opc_bnez;
-                when others => cur_opcode <= opc_break;
-            end case;
+        opc_addi    when "010000",
+        opc_slti    when "010010",
+        opc_sltiu   when "010011",
+        opc_ori     when "010101",
+        opc_slli    when "011000",
+        opc_srli    when "011001",
+        opc_li8     when "011011",
+        opc_lui     when "011100",
 
-        else
-            -- 8-bit opcode. first 2 bits are 11
-            case iram_dout(13 downto 8) is
-                when "000000" => cur_opcode <= opc_sll;
-                when "000001" => cur_opcode <= opc_srl;
-                when "000010" => cur_opcode <= opc_slli;
-                when "000011" => cur_opcode <= opc_srli;
-                when "000100" => cur_opcode <= opc_and;
-                when "000101" => cur_opcode <= opc_or;
-                when "000110" => cur_opcode <= opc_nor;
-                when "000111" => cur_opcode <= opc_xor;
-                when "001000" => cur_opcode <= opc_jr;
-                when "001001" => cur_opcode <= opc_jalr;
-                when "001010" => cur_opcode <= opc_exts;
+        opc_j       when "100000",
+        opc_jal     when "100001",
+        opc_jr      when "100010",
+        opc_jalr    when "100011",
+        opc_beqz    when "100100",
+        opc_bnez    when "100110",
 
-                when "001100" => cur_opcode <= opc_break;
-                when others => cur_opcode <= opc_break;
-            end case;
-        end if; -- opcode width
-    end process;
+        opc_lb      when "110000",
+        opc_lw      when "110001",
+        opc_sb      when "110010",
+        opc_sw      when "110011",
+        opc_break   when "110101",
+
+        opc_break   when others;
 
     -- decide on stage 1 outputs
-    outputs_proc : process(iram_dout, cur_opcode,
-        rd, rs, rt, imm8, pc_plus_2)
+    outputs_proc : process(cur_opcode, pc_plus_2,
+        opcode_grp, rd, rs, rt, imm8, addr12, addr8, link_flag)
     begin
         -- first set default values
         st1out.alu_op           <= aluop_add;
@@ -137,161 +134,154 @@ begin
         st1out.wr_reg_idx       <= (others => '-');
         st1out.pc_plus_2        <= pc_plus_2;
 
-        case cur_opcode is
-            -- IFmt_Math3, IFmt_Math2
-            when  opc_add | opc_sub | opc_slt | opc_sltu
-                | opc_sll | opc_srl | opc_and | opc_or
-                | opc_nor | opc_xor | opc_exts =>
+        case opcode_grp is
+            -- group 0: IFmt_Math3, IFmt_Math2; group 1: IFmt_Imm8
+            when "00" | "01" =>
 
                 case cur_opcode is
-                    when opc_add    => st1out.alu_op <= aluop_add;
-                    when opc_sub    => st1out.alu_op <= aluop_sub;
-                    when opc_and    => st1out.alu_op <= aluop_and;
-                    when opc_or     => st1out.alu_op <= aluop_or;
-                    when opc_nor    => st1out.alu_op <= aluop_nor;
-                    when opc_xor    => st1out.alu_op <= aluop_xor;
-                    when opc_sll    => st1out.alu_op <= aluop_sll;
-                    when opc_srl    => st1out.alu_op <= aluop_srl;
-                    when opc_exts   => st1out.alu_op <= aluop_exts;
-                    when opc_slt    => st1out.alu_op <= aluop_slt;
-                    when opc_sltu   => st1out.alu_op <= aluop_sltu;
+                    when opc_add|opc_addi   => st1out.alu_op <= aluop_add;
+                    when opc_sub            => st1out.alu_op <= aluop_sub;
+                    when opc_slt|opc_slti   => st1out.alu_op <= aluop_slt;
+                    when opc_sltu|opc_sltiu => st1out.alu_op <= aluop_sltu;
+                    when opc_and            => st1out.alu_op <= aluop_and;
+                    when opc_or|opc_ori     => st1out.alu_op <= aluop_or;
+                    when opc_nor            => st1out.alu_op <= aluop_nor;
+                    when opc_xor            => st1out.alu_op <= aluop_xor;
+                    when opc_sll|opc_slli   => st1out.alu_op <= aluop_sll;
+                    when opc_srl|opc_srli   => st1out.alu_op <= aluop_srl;
+                    when opc_exts           => st1out.alu_op <= aluop_exts;
 
-                    when others => st1out.alu_op <= aluop_add;
+                    when opc_li8|opc_lui    => st1out.alu_op <= aluop_sll;
+
+                    when others => null;
                 end case;
 
-                st1out.value1.use_reg <= '1';
-                st1out.value2.use_reg <= '1';
-
                 st1out.wr_type <= wr_alu_to_reg;
 
-                case cur_opcode is
-                    -- IFmt_Math3
-                    when opc_add | opc_sub | opc_slt | opc_sltu =>
-                        st1out.wr_reg_idx <= rd;
+                if opcode_grp = "00" then
+                    -- IFmt_Math3/Math2
 
-                    -- IFmt_Math2
-                    when others =>
-                        st1out.wr_reg_idx <= rs;
-                end case;
+                    st1out.wr_reg_idx     <= rd;
+                    st1out.value1.use_reg <= '1';
+                    st1out.value2.use_reg <= '1';
 
-            -- IFmt_Mem
-            when opc_lb | opc_sb | opc_lw | opc_sw =>
+                elsif cur_opcode = opc_li8 or cur_opcode = opc_lui then
+                    st1out.wr_reg_idx <= rt;
 
-                -- use ALU to calculate memory offset
-                st1out.alu_op <= aluop_add;
-                st1out.value1.use_reg <= '1';
-                st1out.value2.imm <= Logic_Word(
-                    resize(signed(iram_dout(10 downto 8)), 16));
+                    st1out.value1.use_reg <= '0';
 
-                -- decide what to write where
-                case cur_opcode is
-                    -- for loads, write mem output to $rt
-                    when opc_lb =>
-                        st1out.wr_type <= wr_memb_to_reg;
-                        st1out.wr_reg_idx <= rt;
+                    if cur_opcode = opc_li8 then
+                        -- li8 - shift by 0
+                        st1out.value1.imm     <= X"0000";
+                    else
+                        -- lui - shift by 8
+                        st1out.value1.imm     <= X"0008";
+                    end if;
 
-                    when opc_lw =>
-                        st1out.wr_type <= wr_memw_to_reg;
-                        st1out.wr_reg_idx <= rt;
+                    st1out.value2.use_reg <= '0';
+                    st1out.value2.imm     <= "00000000" & imm8;
 
-                    -- for stores, write $rt to mem.
-                    -- note that we're reading $rt but not passing it to the
-                    -- alu - we're setting use_reg to '0'. alu calculation uses
-                    -- value2.imm instead
-                    when opc_sb =>
-                        st1out.wr_type <= wr_reg_to_memb;
-                        st1out.value2.use_reg <= '0';
-
-                    when opc_sw =>
-                        st1out.wr_type <= wr_reg_to_memw;
-                        st1out.value2.use_reg <= '0';
-
-                    when others =>
-                        -- impossible
-                end case;
-
-            -- IFmt_Imm8
-            when opc_li8 =>
-                st1out.wr_reg_idx <= rt;
-                st1out.wr_type <= wr_alu_to_reg;
-
-                st1out.alu_op <= aluop_add;
-                st1out.value1.imm <= (others => '0');
-                st1out.value2.imm <= "00000000" & imm8;
-
-            when opc_lui =>
-                st1out.wr_reg_idx <= rt;
-                st1out.wr_type <= wr_alu_to_reg;
-
-                st1out.alu_op <= aluop_add;
-                st1out.value1.imm <= (others => '0');
-                st1out.value2.imm <= imm8 & "00000000";
-
-            when opc_addi =>
-                st1out.wr_reg_idx <= rt;
-                st1out.wr_type <= wr_alu_to_reg;
-
-                st1out.alu_op <= aluop_add;
-                st1out.value1.imm <= Logic_Word(resize(signed(imm8), 16));
-                st1out.value2.use_reg <= '1';
-
-            when opc_ori =>
-                st1out.wr_reg_idx <= rt;
-                st1out.wr_type <= wr_alu_to_reg;
-
-                st1out.alu_op <= aluop_or;
-                st1out.value1.imm <= "00000000" & imm8;
-                st1out.value2.use_reg <= '1';
-
-            -- IFmt_JmpRel
-            when opc_b | opc_bal =>
-                st1out.branch_type <= b_always_imm;
-
-                st1out.branch_dest <= MemWordAddr(
-                    unsigned(pc_plus_2)
-                    + ("00" & unsigned(iram_dout(10 downto 0))));
-
-                -- link: save $pc+2 in $ra
-                if cur_opcode = opc_bal then
-                    st1out.wr_reg_idx <= ra_reg_idx;
-                    st1out.wr_type <= wr_pc_plus_2_to_ra;
-                end if;
-
-            -- IFmt_Branch
-            when opc_beqz | opc_bnez =>
-                if cur_opcode = opc_beqz then
-                    st1out.branch_type <= b_eqz;
                 else
-                    st1out.branch_type <= b_nez;
+                    -- IFmt_Imm8
+
+                    st1out.wr_reg_idx     <= rt;
+
+                    st1out.value1.use_reg <= '0';
+                    -- some instrs. treat immediate as signed, some as unsigned
+                    if cur_opcode = opc_addi or cur_opcode = opc_slti then
+                        st1out.value1.imm <= Logic_Word(resize(signed(imm8), 16));
+                    else
+                        st1out.value1.imm <= Logic_Word(resize(unsigned(imm8), 16));
+                    end if;
+
+                    st1out.value2.use_reg <= '1';
                 end if;
 
-                -- branch instruction format is weird.
-                st1out.branch_dest <= MemWordAddr(
-                    unsigned(pc_plus_2)
-                    + unsigned(resize(signed(iram_dout(10 downto 4)), 13)));
+            -- group 2: jumps and branches
+            when "10" =>
 
-                -- note we'll be using the value of $rt (value2.reg_val) to
-                -- evaluate the branch condition, but we don't care what the
-                -- ALU sees because we won't be using it.
+                case cur_opcode is
+                    when opc_j | opc_jal =>
+                        st1out.branch_type <= b_always_imm;
+                        st1out.branch_dest <= MemWordAddr(
+                            signed(pc_plus_2) + resize(signed(addr12), 13));
 
-            -- IFmt_JmpReg
-            when opc_jr | opc_jalr =>
-                st1out.branch_type <= b_always_reg;
+                    when opc_jr | opc_jalr =>
+                        -- note we'll be using the value of $rt as the branch
+                        -- destination, but we don't care what the ALU sees
+                        -- because we won't be using it.
+                        st1out.branch_type <= b_always_reg;
+                        st1out.branch_dest <= (others => '-');
 
-                -- note we'll be using the value of $rt as the branch
-                -- destination, but we don't care what the ALU sees because
-                -- we won't be using it.
+                    -- note for cond. branches we'll be using the value of $rt
+                    -- as the branch destination, but we don't care what the
+                    -- ALU sees because we won't be using it.
+                    when opc_beqz =>
+                        st1out.branch_type <= b_eqz;
+                        st1out.branch_dest <= MemWordAddr(
+                            signed(pc_plus_2) + resize(signed(addr8), 13));
+
+                    when opc_bnez =>
+                        st1out.branch_type <= b_nez;
+                        st1out.branch_dest <= MemWordAddr(
+                            signed(pc_plus_2) + resize(signed(addr8), 13));
+
+                    when others => null; -- invalid instr., use defaults
+                end case;
 
                 -- link: save $pc+2 in $ra
-                if cur_opcode = opc_jalr then
+                if link_flag = '1' then
                     st1out.wr_reg_idx <= ra_reg_idx;
                     st1out.wr_type <= wr_pc_plus_2_to_ra;
                 end if;
 
-            -- TODO: opc_break?
+            -- group 3: everything else
+            when "11" =>
+                case cur_opcode is
+                    -- IFmt_Mem
+                    when opc_lb | opc_sb | opc_lw | opc_sw =>
 
-            when others =>
-                -- use defaults
+                        -- use ALU to calculate memory address
+                        st1out.alu_op <= aluop_add;
+                        st1out.value1.use_reg <= '1';
+                        -- offset value is in rd
+                        st1out.value2.use_reg <= '0';
+                        st1out.value2.imm <= Logic_Word(resize(signed(rd), 16));
+
+                        -- decide what to write where
+                        case cur_opcode is
+                            -- for loads, write mem output to $rt
+                            when opc_lb =>
+                                st1out.wr_type <= wr_memb_to_reg;
+                                st1out.wr_reg_idx <= rt;
+
+                            when opc_lw =>
+                                st1out.wr_type <= wr_memw_to_reg;
+                                st1out.wr_reg_idx <= rt;
+
+                            -- for stores, write $rt to mem.
+                            -- note that we're reading $rt but not passing it to the
+                            -- alu - we're setting use_reg to '0'. alu calculation uses
+                            -- value2.imm instead
+                            when opc_sb =>
+                                st1out.wr_type <= wr_reg_to_memb;
+                                st1out.value2.use_reg <= '0';
+
+                            when opc_sw =>
+                                st1out.wr_type <= wr_reg_to_memw;
+                                st1out.value2.use_reg <= '0';
+
+                            when others => null; -- impossible
+                        end case;
+
+                    -- TODO:
+                    when opc_break => null;
+
+                    when others => null; -- use defaults
+
+                end case;
+
+            when others => null; -- impossible
         end case;
     end process;
 

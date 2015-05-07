@@ -21,6 +21,8 @@ INSTR_FIELDS = {
 InstrFormat = namedtuple('InstrFormat', 'name operandFields')
 
 IFmt_Math3   = InstrFormat('Math3',  'rd rs rt')
+# for shift instructions, rs and rt are swapped
+IFmt_Math3_shift = InstrFormat('Math3 (shift)', 'rd rt rs')
 IFmt_Math2   = InstrFormat('Math2',  'rd rt')       # Math3 with ignored rs
 IFmt_Imm8    = InstrFormat('Imm8',   'rt imm8')
 IFmt_Imm4    = InstrFormat('Imm4',   'rt imm4')     # Imm8 with ignored bits
@@ -28,8 +30,8 @@ IFmt_Imm4    = InstrFormat('Imm4',   'rt imm4')     # Imm8 with ignored bits
 # (for lw/sw, offset must be aligned anyway, so we can multiply by 2)
 IFmt_Mem     = InstrFormat('Mem',    'rt regofs')
 IFmt_JmpRel  = InstrFormat('JmpRel', 'addr12')
-IFmt_Branch  = InstrFormat('Branch', 'rt addr8')
 IFmt_JmpReg  = InstrFormat('JmpReg', 'rt')
+IFmt_Branch  = InstrFormat('Branch', 'rt addr8')
 IFmt_Special = InstrFormat('Special','')
 
 

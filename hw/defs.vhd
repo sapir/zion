@@ -24,14 +24,18 @@ package defs is
 
     type Opcode_Type is (
         opc_add, opc_sub, opc_slt, opc_sltu,
-        opc_lb, opc_lw, opc_sb, opc_sw,
-        opc_li8, opc_lui, opc_addi, opc_ori,
-        opc_b, opc_bal, opc_beqz, opc_bnez,
-        opc_sll, opc_srl, opc_slli, opc_srli,
         opc_and, opc_or, opc_nor, opc_xor,
-        opc_jr, opc_jalr,
-        opc_exts, opc_break
+        opc_sll, opc_srl, opc_exts,
+        opc_addi, opc_slti, opc_sltiu,
+        opc_ori,
+        opc_slli, opc_srli,
+        opc_li8, opc_lui,
+        opc_j, opc_jal, opc_jr, opc_jalr,
+        opc_beqz, opc_bnez,
+        opc_lb, opc_lw, opc_sb, opc_sw,
+        opc_break
         );
+
 
     type Alu_Op_Type is (
         aluop_add,
