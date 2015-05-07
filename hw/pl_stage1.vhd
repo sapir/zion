@@ -44,7 +44,7 @@ architecture Behavioral of pl_stage1 is
     signal imm8         : Logic_Byte;
 begin
 
-    sync_proc : process(clk, next_pc)
+    sync_proc : process(clk)
     begin
         if rising_edge(clk) then
             pc <= next_pc;
