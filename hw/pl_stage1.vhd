@@ -268,7 +268,7 @@ begin
                 -- branch instruction format is weird.
                 st1out.branch_dest <= MemWordAddr(
                     unsigned(pc_plus_2)
-                    + unsigned(resize(signed(iram_dout(6 downto 0)), 13)));
+                    + unsigned(resize(signed(iram_dout(10 downto 4)), 13)));
 
                 -- note we'll be using the value of $rt (value2.reg_val) to
                 -- evaluate the branch condition, but we don't care what the
