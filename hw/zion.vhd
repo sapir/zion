@@ -21,22 +21,25 @@ architecture Behavioral of zion is
         );
     END COMPONENT;
 
-    -- Instruction RAM component (actually ROM)
-    COMPONENT instr_blkmem
-    PORT (
-        clka : IN STD_LOGIC;
-        wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        addra : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
-        dina : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        douta : OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
-        clkb : IN STD_LOGIC;
-        enb : IN STD_LOGIC;
-        web : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        addrb : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
-        dinb : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        doutb : OUT STD_LOGIC_VECTOR(15 DOWNTO 0)
-        );
+    -- BRAM component
+    COMPONENT memory
+    generic (width_bits, depth_words, addr_size : integer);
+    port (
+        clka    : in std_logic;
+        ena     : in std_logic;
+        wea     : in std_logic_vector(0 downto 0);
+        addra   : in std_logic_vector(addr_size - 1 downto 0);
+        dina    : in std_logic_vector(width_bits - 1 downto 0);
+        douta   : out std_logic_vector(width_bits - 1 downto 0);
+
+        clkb    : in std_logic;
+        enb     : in std_logic;
+        web     : in std_logic_vector(0 downto 0);
+        addrb   : in std_logic_vector(addr_size - 1 downto 0);
+        dinb    : in std_logic_vector(width_bits - 1 downto 0);
+        doutb   : out std_logic_vector(width_bits - 1 downto 0));
     END COMPONENT;
+    -- IRAM input/output signals
     signal iram_addra   : MemWordAddr;
     signal iram_douta   : Logic_Word;
     signal iram_enb     : std_logic;
@@ -44,6 +47,18 @@ architecture Behavioral of zion is
     signal iram_addrb   : MemWordAddr;
     signal iram_dinb    : Logic_Word;
     signal iram_doutb   : Logic_Word;
+    -- DRAM input/output signals
+    signal dram_ena     : std_logic;
+    signal dram_addra   : DataByteAddr;
+    signal dram_douta   : Logic_Byte;
+    signal dram_wea     : lvbit;
+    signal dram_dina    : Logic_Byte;
+    signal dram_enb     : std_logic;
+    signal dram_addrb   : DataByteAddr;
+    signal dram_dinb    : Logic_Byte;
+    signal dram_web     : lvbit;
+    signal dram_doutb   : Logic_Byte;
+
 
     -- Registers component
     COMPONENT my_regs
@@ -65,34 +80,6 @@ architecture Behavioral of zion is
     signal wr_reg_en    : std_logic;
     signal wr_reg_idx   : Reg_Index;
     signal wr_reg_data  : Logic_Word;
-
-    -- Data RAM component
-    COMPONENT data_blockmem
-      PORT (
-        clka : IN STD_LOGIC;
-        ena : IN STD_LOGIC;
-        wea : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        addra : IN STD_LOGIC_VECTOR(10 DOWNTO 0);
-        dina : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-        douta : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-        clkb : IN STD_LOGIC;
-        enb : IN STD_LOGIC;
-        web : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        addrb : IN STD_LOGIC_VECTOR(10 DOWNTO 0);
-        dinb : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-        doutb : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
-      );
-    END COMPONENT;
-    signal dram_ena     : std_logic;
-    signal dram_addra   : DataByteAddr;
-    signal dram_douta   : Logic_Byte;
-    signal dram_wea     : lvbit;
-    signal dram_dina    : Logic_Byte;
-    signal dram_enb     : std_logic;
-    signal dram_addrb   : DataByteAddr;
-    signal dram_dinb    : Logic_Byte;
-    signal dram_web     : lvbit;
-    signal dram_doutb   : Logic_Byte;
 
 
     -- pipeline stages
@@ -200,12 +187,15 @@ begin
         CLK0_OUT        => open
     );
 
-    iram : instr_blkmem PORT MAP (
+    iram : memory
+    GENERIC MAP( width_bits=>16, addr_size=>13, depth_words=>8192 )
+    PORT MAP (
         clka    => dcm_clk,
+        ena     => '1',
         addra   => iram_addra,
         douta   => iram_douta,
         wea     => "0",
-        dina    => (others => '0'),
+        dina    => X"0000",
 
         clkb    => dcm_clk,
         enb     => iram_enb,
@@ -214,7 +204,9 @@ begin
         web     => iram_web,
         dinb    => iram_dinb);
 
-    dram : data_blockmem PORT MAP (
+    dram : memory
+    GENERIC MAP( width_bits=>8, addr_size=>11, depth_words=>2048 )
+    PORT MAP (
         clka    => dcm_clk,
         ena     => dram_ena,
         addra   => dram_addra,
