@@ -16,23 +16,39 @@ entity my_regs is
 end my_regs;
 
 architecture Behavioral of my_regs is
-	type Regs_Type is array(0 to 15) of Logic_Word;
-	signal regs : Regs_Type := (others => (others => '0'));
+    type Regs_Type is array(0 to 15) of Logic_Word;
+    signal regs : Regs_Type := (others => (others => '0'));
 begin
-	-- replace reads from $zero with 0
-	reg1 <= (others => '0') when rd1 = "0000" else regs(to_integer(u4(rd1)));
-	reg2 <= (others => '0') when rd2 = "0000" else regs(to_integer(u4(rd2)));
 
-	wr_proc: process(clk, we, wr_idx, wr_data)
-	begin
-		if rising_edge(clk) then
-			-- allow writing to 0, we'll just ignore it on read
-			if we = '1' then
-				regs(to_integer(u4(wr_idx))) <= wr_data;
-			end if;
-			
-			-- override writes to $zero
-			regs(0) <= (others => '0');
-		end if;
-	end process;
+    rd_proc : process(rd1, rd2, regs, we, wr_idx, wr_data)
+    begin
+        -- replace reads from $zero with 0.
+        if rd1 = "0000" then
+            reg1 <= (others => '0');
+        -- write-first by returning written value before next clock cycle
+        elsif rd1 = wr_idx and we = '1' then
+            reg1 <= wr_data;
+        else
+            reg1 <= regs(to_integer(u4(rd1)));
+        end if;
+
+        -- like above for 2nd register
+        if rd2 = "0000" then
+            reg2 <= (others => '0');
+        elsif rd2 = wr_idx and we = '1' then
+            reg2 <= wr_data;
+        else
+            reg2 <= regs(to_integer(u4(rd2)));
+        end if;
+    end process;
+
+    wr_proc : process(clk)
+    begin
+        if rising_edge(clk) then
+            if we = '1' and wr_idx /= "0000" then
+                regs(to_integer(u4(wr_idx))) <= wr_data;
+            end if;
+        end if;
+    end process;
+
 end Behavioral;
