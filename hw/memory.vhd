@@ -20,6 +20,9 @@ entity memory is
         addrb   : in std_logic_vector(addr_size - 1 downto 0);
         dinb    : in std_logic_vector(width_bits - 1 downto 0);
         doutb   : out std_logic_vector(width_bits - 1 downto 0));
+
+    attribute ram_style : string;
+    attribute ram_style of memory : entity is "block";
 end memory;
 
 
