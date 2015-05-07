@@ -41,12 +41,12 @@ architecture Behavioral of zion is
     END COMPONENT;
     -- IRAM input/output signals
     signal iram_addra   : MemWordAddr;
-    signal iram_douta   : Logic_Word;
+    signal iram_douta   : Instr_Type;
     signal iram_enb     : std_logic;
     signal iram_web     : lvbit;
     signal iram_addrb   : MemWordAddr;
-    signal iram_dinb    : Logic_Word;
-    signal iram_doutb   : Logic_Word;
+    signal iram_dinb    : Instr_Type;
+    signal iram_doutb   : Instr_Type;
     -- DRAM input/output signals
     signal dram_ena     : std_logic;
     signal dram_addra   : DataByteAddr;
@@ -88,7 +88,7 @@ architecture Behavioral of zion is
     PORT(
         clk             : in std_logic;
         iram_addr       : out MemWordAddr;
-        iram_dout       : in Logic_Word;
+        iram_dout       : in Instr_Type;
         reg_idx1        : out Reg_Index;
         reg_idx2        : out Reg_Index;
         reg_dout1       : in Logic_Word;
@@ -117,8 +117,8 @@ architecture Behavioral of zion is
         iram_en         : out std_logic;
         iram_we         : out lvbit;
         iram_addr       : out MemWordAddr;
-        iram_din        : out Logic_Word;
-        iram_dout       : in Logic_Word;
+        iram_din        : out Instr_Type;
+        iram_dout       : in Instr_Type;
         dram_ena        : out std_logic;
         dram_wea        : out lvbit;
         dram_addra      : out DataByteAddr;
@@ -188,14 +188,14 @@ begin
     );
 
     iram : memory
-    GENERIC MAP( width_bits=>16, addr_size=>13, depth_words=>8192 )
+    GENERIC MAP( width_bits=>18, addr_size=>13, depth_words=>8192 )
     PORT MAP (
         clka    => dcm_clk,
         ena     => '1',
         addra   => iram_addra,
         douta   => iram_douta,
         wea     => "0",
-        dina    => X"0000",
+        dina    => "000000000000000000",
 
         clkb    => dcm_clk,
         enb     => iram_enb,

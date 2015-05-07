@@ -15,8 +15,8 @@ entity pl_stage3 is
         iram_en         : out std_logic;
         iram_we         : out lvbit;
         iram_addr       : out MemWordAddr;
-        iram_din        : out Logic_Word;
-        iram_dout       : in Logic_Word;
+        iram_din        : out Instr_Type;
+        iram_dout       : in Instr_Type;
 
         -- communication with DRAM
         dram_ena        : out std_logic;
@@ -81,7 +81,7 @@ begin
         iram_en         <= '0';
         iram_we         <= "0";
         iram_addr       <= mem_addr(13 downto 1);   -- ignore lsb
-        iram_din        <= (others => '-');
+        iram_din        <= "00" & wr_val; -- TODO
         io_reg_we       <= "0";
         io_reg_inp      <= (others => '-');
 
@@ -162,7 +162,7 @@ begin
 
             when wr_memw_to_reg =>
                 if cur_memobj = mo_iram then
-                    wr_reg_data <= iram_dout;
+                    wr_reg_data <= iram_dout(15 downto 0); -- TODO
                 else
                     -- assume dram - I/O doesn't support reads
                     wr_reg_data <= dram_douta & dram_doutb;

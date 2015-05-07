@@ -12,6 +12,7 @@ package defs is
     subtype MemWordAddr is std_logic_vector(12 downto 0);
     subtype DataByteAddr is std_logic_vector(10 downto 0);
 
+    subtype Instr_Type is std_logic_vector(17 downto 0);
     subtype Reg_Index is std_logic_vector(3 downto 0);
 
     -- index of $ra

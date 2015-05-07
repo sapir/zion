@@ -10,7 +10,7 @@ entity pl_stage1 is
 
         -- communication with IRAM
         iram_addr       : out MemWordAddr;
-        iram_dout       : in Logic_Word;
+        iram_dout       : in Instr_Type;
 
         -- communication with Register File
         reg_idx1        : out Reg_Index;
