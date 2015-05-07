@@ -68,14 +68,14 @@ grStatement = grLabel | grOpcodeStmt
 grProgram = OneOrMore(grStatement)
 
 
-def _encodeOperand(value, typeName, curStmtIndex, labels):
-    if typeName == 'reg':
+def _encodeOperand(fieldName, value, curStmtIndex, labels):
+    if fieldName in ('rd', 'rs', 'rt'):
         assert isinstance(value, Register)
         return REGISTER_NAMES[value]
 
-    elif typeName == 'regofs':
+    elif fieldName == 'regofs':
         assert isinstance(value, RegOffset)
-        regNum = _encodeOperand(value.reg, 'reg', curStmtIndex, labels)
+        regNum = _encodeOperand('rs', value.reg, curStmtIndex, labels)
 
         ofs = value.ofs
         assert -8 <= ofs < 8
@@ -83,28 +83,40 @@ def _encodeOperand(value, typeName, curStmtIndex, labels):
 
         return (ofs << 4) | regNum
 
-    elif typeName == 'imm8':
-        assert 0x00 <= value <= 0xff
+    elif fieldName == 'imm8':
+        assert 0x00 <= value <= 0xff, \
+            "{!r} out of range for imm8".format(value)
+
         return value
 
-    elif typeName == 'imm4':
-        assert 0x0 <= value <= 0xf
+    elif fieldName == 'imm4':
+        assert 0x0 <= value <= 0xf, \
+            "{!r} out of range for imm4".format(value)
+
         return value
 
-    elif typeName.startswith('addr'):
+    elif fieldName.startswith('addr'):
         assert isinstance(value, Label)
 
         nextStmtIndex = curStmtIndex + 1
         labelIndex = labels[value]
         ofs = labelIndex - nextStmtIndex
 
-        if typeName == 'addr7':
-            assert -64 <= ofs < 64
-            return ofs & 0x7f
+        if fieldName == 'addr8':
+            assert -128 <= ofs < 128, \
+                "{!r} out of range for addr8".format(ofs)
+
+            return ofs & 0xff
+
         else:
-            assert typeName == 'addr11'
-            assert -1024 <= ofs < 1024
-            return ofs & 0x7ff
+            assert fieldName == 'addr12'
+            assert -2048 <= ofs < 2048, \
+                "{!r} out of range for addr12".format(ofs)
+
+            return ofs & 0xfff
+
+    else:
+        raise ValueError("unknown field {!r}".format(fieldName))
 
 def expandMacros(stmt):
     if stmt.opcode in ['add', 'sub', 'slt', 'sltu'] and len(stmt.operands) == 2:
@@ -162,18 +174,15 @@ def assemble(code):
         assert isinstance(stmt, OpcodeStmt)
 
         opcodeInfo = OPCODES[stmt.opcode]
-        opndTypes = opcodeInfo.ifmt.operandTypes.split()
+        opndFieldNames = opcodeInfo.ifmt.operandFields.split()
 
-        assert len(stmt.operands) == len(opndTypes)
+        assert len(stmt.operands) == len(opndFieldNames)
         operands = [
-            _encodeOperand(opnd, opndType, stmtIndex, labels)
-            for (opnd, opndType)
-            in zip(stmt.operands, opndTypes)]
+            _encodeOperand(name, val, stmtIndex, labels)
+            for (name, val)
+            in zip(opndFieldNames, stmt.operands)]
 
-        fields = [opcodeInfo.id] + operands
-        fields = permute(fields, opcodeInfo.ifmt.operandOrder)
-        word = joinBitFields(fields, opcodeInfo.ifmt.fieldWidths)
-        assembledWords.append(word)
+        assembledWords.append(encodeML(stmt.opcode, operands))
 
     return assembledWords
 
@@ -191,4 +200,4 @@ if __name__ == '__main__':
 
     out = open(outFilename, 'wb')
     for w in words:
-        out.write(pack('>H', w))
+        out.write(pack('>BH', w >> 16, w & 0xffff))

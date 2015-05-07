@@ -30,6 +30,8 @@ class ZionEmulator(object):
     def __init__(self, memorySize=65536):
         self.memorySize = memorySize
         self.mem = [0] * self.memorySize
+        # every other extraBits is ignored
+        self.extraBits = [0] * self.memorySize
 
         self.clearState()
 
@@ -43,13 +45,16 @@ class ZionEmulator(object):
 
     def getMemWord(self, addr):
         assert addr % 2 == 0
-        return (self.mem[addr] << 8) | self.mem[addr + 1]
+        return ((self.extraBits[addr] << 16)
+                | (self.mem[addr] << 8)
+                | self.mem[addr + 1])
 
     def setMemWord(self, addr, val):
         assert addr % 2 == 0
-        assert 0x0000 <= val <= 0xffff
-        self.mem[addr]     = val >> 8
-        self.mem[addr + 1] = val & 0xff 
+        assert 0x00000 <= val <= 0x3ffff
+        self.extraBits[addr] = val >> 16
+        self.mem[addr]     = (val >> 8) & 0xff
+        self.mem[addr + 1] = val        & 0xff
 
     def setMem(self, *words):
         addr = 0
@@ -59,7 +64,8 @@ class ZionEmulator(object):
             self.setMemWord(addr, w)
 
         # fill rest of memory with break instructions
-        self.mem[addr + 2:] = repeat(0xcc, self.memorySize - addr)
+        self.mem[addr + 2:] = repeat(0x50, self.memorySize - addr)
+        self.extraBits[addr + 2:] = repeat(3, self.memorySize - addr)
 
     def run(self):
         try:
@@ -79,39 +85,30 @@ class ZionEmulator(object):
 
     def execute(self, word):
         name, operands = decodeML(word)
-        # print(name, ', '.join(map(hex, operands)))
+        print(name, ', '.join(map(hex, operands)))
 
         methodName = 'do_' + name
         method = getattr(self, methodName)
 
         method(*operands)
 
-    def do_add(self, rd, rs, rt):
-        if rd == 0:
-            return
+        # override writes to 0
+        self.regs[0] = 0
 
+    def do_add(self, rd, rs, rt):
         self.regs[rd] = self.regs[rs] + self.regs[rt]
         self.regs[rd] &= 0xffff
 
     def do_sub(self, rd, rs, rt):
-        if rd == 0:
-            return
-
         self.regs[rd] = self.regs[rs] - self.regs[rt]
         self.regs[rd] &= 0xffff
 
     def do_slt(self, rd, rs, rt):
-        if rd == 0:
-            return
-
         rsVal = asSigned(16, self.regs[rs])
         rtVal = asSigned(16, self.regs[rt])
         self.regs[rd] = 1 if (rsVal < rtVal) else 0
 
     def do_sltu(self, rd, rs, rt):
-        if rd == 0:
-            return
-
         rsVal = self.regs[rs]
         rtVal = self.regs[rt]
         self.regs[rd] = 1 if (rsVal < rtVal) else 0
@@ -122,23 +119,17 @@ class ZionEmulator(object):
 
         addr = self.regs[rs]
         assert addr % 2 == 0, "unaligned memory access"
-        addr += asSigned(3, ofs)
+        addr += asSigned(4, ofs)
         addr &= 0xffff
         return addr
 
     def do_lb(self, rd, rs_ofs):
-        if rd == 0:
-            return
-
         self.regs[rd] = self.mem[self._getRegOffsetAddr(rs_ofs)]
 
     def do_sb(self, rd, rs_ofs):
         self.mem[self._getRegOffsetAddr(rs_ofs)] = self.regs[rd]
 
     def do_lw(self, rd, rs_ofs):
-        if rd == 0:
-            return
-
         self.regs[rd] = self.getMemWord(self._getRegOffsetAddr(rs_ofs))
 
     def do_sw(self, rd, rs_ofs):
@@ -170,7 +161,7 @@ class ZionEmulator(object):
         self.regs[NICE_REGISTER_NAMES['$ra']] = self.pc
 
     def do_b(self, ofs):
-        self._relJmp(11, ofs)
+        self._relJmp(12, ofs)
 
     def do_bal(self, ofs):
         self.do_b(ofs)
@@ -178,11 +169,11 @@ class ZionEmulator(object):
 
     def do_beqz(self, reg, ofs):
         if self.regs[reg] == 0:
-            self._relJmp(7, ofs)
+            self._relJmp(8, ofs)
 
     def do_bnez(self, reg, ofs):
         if self.regs[reg] != 0:
-            self._relJmp(7, ofs)
+            self._relJmp(8, ofs)
 
     def do_sll(self, rs, rt):
         self.regs[rs] <<= self.regs[rt]
@@ -231,19 +222,21 @@ class ZionEmulator(object):
 if __name__ == '__main__':
     emu = ZionEmulator()
 
-    # calculate 12th(?) fibonacci number
+    # calculate 5th(?) fibonacci number
     emu.setMem(
-        0x8101, # li8 1, 1
-        0x8201, # li8 2, 1
-        0x8300, # li8 3, 0
-        0x840a, # li8 4, 10
-        # loop:
-        0x0512, # add 5,1,2
-        0x0102, # add 1,0,2 (move 1,2)
-        0x0205, # add 2,0,5 (move 2,5)
-        0x9301, # addi 3, 1
-        0x3534, # sltu 5,3,4
-        0xbafa, # bnez 5,-6
+        0x1b016,
+        0x1b017,
+        0x1b002,
+        0x1b053,
+        0x1c80c,
+        0x100c0,
+        0x00467,
+        0x00607,
+        0x00704,
+        0x320c7,
+        0x10012,
+        0x03423,
+        0x26f84,
         )
     emu.run()
 

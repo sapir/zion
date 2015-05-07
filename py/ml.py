@@ -4,36 +4,33 @@ import operator
 from collections import namedtuple
 
 
-InstrFormat = namedtuple('InstrFormat',
-    'desc fieldWidths operandTypes operandOrder')
+InstrField = namedtuple('InstrField', 'msb lsb width')
+INSTR_FIELDS = {
+    'opcode': InstrField(17, 12,  6),
+    'rd':     InstrField(11,  8,  4),
+    'rs':     InstrField( 7,  4,  4),
+    'rt':     InstrField( 3,  0,  4),
+    'imm8':   InstrField(11,  4,  8),
+    'imm4':   InstrField( 7,  4,  4),   # same bits as rs but different usage
+    'addr12': InstrField(11,  0, 12),
+    'addr8':  InstrField(11,  4,  8),   # same as imm8 but different usage
+    'regofs': InstrField(11,  4,  8),   # ofs is in rd, reg is in rs
+    }
 
 
-IFmt_Math3 = InstrFormat('math, 3 regs',
-    (4, 4,4,4), 'reg reg reg', None)
-IFmt_Imm8 = InstrFormat('imm8: reg=imm8',
-    (4, 8,4), 'reg imm8', [0,2,1])
+InstrFormat = namedtuple('InstrFormat', 'name operandFields')
 
-# memory access - 2 regs + 3-bit signed offset
+IFmt_Math3   = InstrFormat('Math3',  'rd rs rt')
+IFmt_Math2   = InstrFormat('Math2',  'rd rt')       # Math3 with ignored rs
+IFmt_Imm8    = InstrFormat('Imm8',   'rt imm8')
+IFmt_Imm4    = InstrFormat('Imm4',   'rt imm4')     # Imm8 with ignored bits
+# memory access - 2 regs + 4-bit signed offset (-8 to 7)
 # (for lw/sw, offset must be aligned anyway, so we can multiply by 2)
-IFmt_Mem = InstrFormat('memory access',
-    (5, 7,4), 'reg regofs', [0,2,1])
-IFmt_JmpRel = InstrFormat('jump to relative address',
-    (5, 11), 'addr11', None)
-IFmt_Branch = InstrFormat('branch (cond. jump)',
-    (5, 7,4), 'reg addr7', [0,2,1])
-
-# TODO: move 4-bits to end so it's a 12-bit opcode
-IFmt_JmpReg = InstrFormat('jump to register',
-    (8, 4,0), 'reg', None)
-IFmt_Math2 = InstrFormat('math, 2 regs',
-    (8, 4,4), 'reg reg', None)
-# TODO: swap imm and reg fields to be consistent so every ifmt that uses only
-# only reg puts it in rt rather than rs. means also swapping Math2 and JmpReg.
-IFmt_MathImm4 = InstrFormat('math, reg <<= imm4',
-    (8, 4,4), 'reg imm4', None)
-
-IFmt_Special = InstrFormat('special',
-    (8, 0), '', None)
+IFmt_Mem     = InstrFormat('Mem',    'rt regofs')
+IFmt_JmpRel  = InstrFormat('JmpRel', 'addr12')
+IFmt_Branch  = InstrFormat('Branch', 'rt addr8')
+IFmt_JmpReg  = InstrFormat('JmpReg', 'rt')
+IFmt_Special = InstrFormat('Special','')
 
 
 # opcodes by group:
@@ -68,59 +65,47 @@ OpcodeInfo = namedtuple('OpcodeInfo', 'id ifmt')
 _O = OpcodeInfo
 
 OPCODES = {
-    # 4-bit opcodes (8)
-    'add':  _O(0, IFmt_Math3),  # write to 0 for nop
-    'sub':  _O(1, IFmt_Math3),  # used for neg
-    # TODO: these 2 could be 5-bit Math3 with restricted reg, though
-    # branches would need to be moved aside. (freeing 4-bit opcode slots
-    # for...?)
-    'slt':  _O(2, IFmt_Math3),
-    'sltu': _O(3, IFmt_Math3),
+    # Opcode group 0: 3-register math & logic
+    'add':  _O(0x00, IFmt_Math3),   # write to 0 for nop
+    'sub':  _O(0x01, IFmt_Math3),   # used for neg
+    'slt':  _O(0x02, IFmt_Math3),
+    'sltu': _O(0x03, IFmt_Math3),
+    'and':  _O(0x04, IFmt_Math3),
+    'or':   _O(0x05, IFmt_Math3),
+    'nor':  _O(0x06, IFmt_Math3),   # nor w/ self to get not
+    'xor':  _O(0x07, IFmt_Math3),
+    'sll':  _O(0x08, IFmt_Math3),
+    'srl':  _O(0x09, IFmt_Math3),
+    'exts': _O(0x0a, IFmt_Math2),   # also like Math3. rs is ignored.
 
-    'li8':  _O(4, IFmt_Imm8),      # = 3-reg addi w/ $zero
-    'lui':  _O(5, IFmt_Imm8),      # = li8 + slli w/ 16
-    'addi': _O(6, IFmt_Imm8),      # useful for loops
-    'ori':  _O(7, IFmt_Imm8),      # useful for li16
+    # Opcode group 1: reg+imm math & logic
+    # (for opcodes with a 3-register version, sub-id should match
+    # sub-id in group 0)
+    'addi': _O(0x10, IFmt_Imm8),    # useful for loops
+    'slti': _O(0x12, IFmt_Imm8),
+    'sltiu':_O(0x13, IFmt_Imm8),
+    'ori':  _O(0x15, IFmt_Imm8),    # useful for li16
+    'slli': _O(0x18, IFmt_Imm4),
+    'srli': _O(0x19, IFmt_Imm4),
+    'li8':  _O(0x1b, IFmt_Imm8),    # = 3-reg addi w/ $zero
+    'lui':  _O(0x1c, IFmt_Imm8),    # = li8 + slli w/ 16
 
-    # 5-bit opcodes (8)
-    'lb':   _O(0x10, IFmt_Mem),
-    'lw':   _O(0x11, IFmt_Mem),
-    'sb':   _O(0x12, IFmt_Mem),
-    'sw':   _O(0x13, IFmt_Mem),
+    # Opcode group 2: jumps and branches (6)
+    # (low bit of opcode is used as link flag. non-linking jumps
+    # should have even opcodes)
+    'j':    _O(0x20, IFmt_JmpRel),
+    'jal':  _O(0x21, IFmt_JmpRel),
+    'jr':   _O(0x22, IFmt_JmpReg),
+    'jalr': _O(0x23, IFmt_JmpReg),
+    'beqz': _O(0x24, IFmt_Branch),
+    'bnez': _O(0x26, IFmt_Branch),
 
-    # TODO: b = beqz $zero. but currently no equiv. for bal
-    'b':    _O(0x14, IFmt_JmpRel),    # relative jump
-    'bal':  _O(0x15, IFmt_JmpRel),    # relative jump & link
-    'beqz': _O(0x16, IFmt_Branch),
-    'bnez': _O(0x17, IFmt_Branch),
-
-    # 8-bit opcodes (64)
-    'sll':  _O(0x80, IFmt_Math2),
-    'srl':  _O(0x81, IFmt_Math2),
-
-    'slli': _O(0x82, IFmt_MathImm4),
-    'srli': _O(0x83, IFmt_MathImm4),
-
-    'and':  _O(0x84, IFmt_Math2),
-    'or':   _O(0x85, IFmt_Math2),
-    'nor':  _O(0x86, IFmt_Math2),     # nor w/ self to get not
-    'xor':  _O(0x87, IFmt_Math2),
-
-    'jr':   _O(0x88, IFmt_JmpReg),
-    'jalr': _O(0x89, IFmt_JmpReg),
-
-    # TODO: move above jr/jalr
-    'exts': _O(0x8a, IFmt_Math2),
-    # 'not':  IFmt_Math2,     # =nor w/ self
-
-    'break':_O(0xcc, IFmt_Special),
-
-    # not implementing:
-    # 'j':    IFmt_JmpAbs,
-    # 'jal':  IFmt_JmpAbs,
-    # 'andi': IFmt_MathImm8,
-    # 'slti': IFmt_MathImm8,
-    # 'sltiu':IFmt_MathImm8,
+    # Opcode group 3: everything else
+    'lb':   _O(0x30, IFmt_Mem),
+    'lw':   _O(0x31, IFmt_Mem),
+    'sb':   _O(0x32, IFmt_Mem),
+    'sw':   _O(0x33, IFmt_Mem),
+    'break':_O(0x35, IFmt_Special),
     }
 
 OPCODES_BY_ID = dict(
@@ -152,65 +137,39 @@ def extractBits(n, msb, width):
     n >>= lsb
     return n
 
-def splitBitFields(word, fieldWidths):
-    assert sum(fieldWidths) == 16 or fieldWidths[-1] == 0
-    # only last field may be 0-sized (means "skip rest")
-    assert not any(w == 0 for w in fieldWidths[:-1])
+def setBits(n, msb, width, val):
+    lsb = msb - width + 1
 
-    res = []
+    mask = (1 << width) - 1
+    assert val == (val & mask)
 
-    msb = 15
-    for width in fieldWidths:
-        if width == 0:
-            break
+    n &= ~(mask << lsb) # remove old bits
+    n |= (val << lsb)   # set new bits
+    return n
 
-        res.append(extractBits(word, msb, width))
-        msb -= width
+def getInstrField(n, name):
+    fld = INSTR_FIELDS[name]
+    return extractBits(n, fld.msb, fld.width)
 
-    return res
-
-def joinBitFields(values, fieldWidths):
-    word = 0
-    msb = 15
-    for value, width in zip(values, fieldWidths):
-        lsb = msb - width + 1
-        truncValue = value & ((1 << width) - 1)
-        assert value == truncValue, (
-            "overflow! {} doesn't fit in {} bits (msb is {})"
-            .format(value, width, msb))
-
-        word |= value << lsb
-
-        msb = lsb - 1
-
-    return word
-
-def permute(values, order):
-    if order is None:
-        return values
-
-    return [values[idx] for idx in order]
-
-def unpermute(values, order):
-    if order is None:
-        return values
-
-    return [values[order.index(i)] for i in xrange(len(values))]
+def setInstrField(n, name, val):
+    fld = INSTR_FIELDS[name]
+    return setBits(n, fld.msb, fld.width, val)
 
 def decodeML(word):
-    if (word & 0x8000) == 0:
-        opcodeLen = 4
-    elif (word & 0x4000) == 0:
-        opcodeLen = 5
-    else:
-        opcodeLen = 8
-
-    opcodeID =  extractBits(word, 15, opcodeLen)
+    opcodeID = getInstrField(word, 'opcode')
     name, opcodeInfo = OPCODES_BY_ID[opcodeID]
-    fields = splitBitFields(word, opcodeInfo.ifmt.fieldWidths)
-    fields = unpermute(fields, opcodeInfo.ifmt.operandOrder)
-
-    assert fields[0] == opcodeID
-    operands = fields[1:]
-
+    operands = [getInstrField(word, f)
+        for f in opcodeInfo.ifmt.operandFields.split()]
     return (name, operands)
+
+def encodeML(opcode, operands):
+    opcodeInfo = OPCODES[opcode]
+
+    word = setInstrField(0, 'opcode', opcodeInfo.id)
+
+    fieldNames = opcodeInfo.ifmt.operandFields.split()
+
+    for (name, val) in zip(fieldNames, operands):
+        word = setInstrField(word, name, val)
+
+    return word
