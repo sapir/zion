@@ -1,0 +1,29 @@
+# Python
+*.pyc
+
+# Xilinx ISE files
+*.bgn
+*.bit
+*.bld
+*.cmd_log
+*.drc
+*.lck
+*.ncd
+*.stx
+*.syr
+*.pad
+*.par
+*.pcf
+*.ptwx
+*.ut
+*.xdl
+*.xpi
+*.xrpt
+*.xst
+*.xwbt
+planAhead_*
+webtalk_*
+*_webtalk.html
+*_summary.html
+*_summary.xml
+*_usage.xml
