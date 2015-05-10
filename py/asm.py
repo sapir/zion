@@ -51,7 +51,7 @@ grRegOffset = grNumber("ofs") + "(" - grRegister("reg") - ")"
 grRegOffset.setParseAction(
     lambda s,loc,toks: RegOffset(toks['reg'], toks['ofs']))
 
-grOperand = (
+grOperand = ~FollowedBy(grOpcode) + (
     grRegOffset("regofs")
     | grRegister("reg")
     | grImmediate("imm")
