@@ -64,6 +64,15 @@ package defs is
             fwd_val : Logic_Word;
         end record;
 
+    type Stage_0_1_Interface is
+        record
+            -- if '1', this instruction shouldn't be performed, i.e. writes and
+            -- branches should be cancelled
+            invalid_flag : std_logic;
+
+            pc_plus_2   : MemWordAddr;
+        end record;
+
     type ImmOrReg_Type is
         record
             imm     : Logic_Word;
@@ -79,10 +88,6 @@ package defs is
     type Stage_1_2_Interface is
         record
             -- inputs to stage 2
-
-            -- if '1', this instruction shouldn't be performed, i.e. writes and
-            -- branches should be cancelled
-            invalid_flag : std_logic;
 
             alu_op      : Alu_Op_Type;
 
@@ -101,6 +106,9 @@ package defs is
             -- inputs to stages 3 & 4
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
+
+            -- copied from stage 0
+            invalid_flag: std_logic;
             pc_plus_2   : MemWordAddr;
         end record;
 
@@ -122,7 +130,7 @@ package defs is
         record
             alu_res     : Logic_Word;
 
-            -- copied from stage 1
+            -- copied from stages 0 & 1
             wr_type     : Write_Type;   -- rather than forward invalid_flag to
                                             -- stage 3, this just gets set to
                                             -- wr_none

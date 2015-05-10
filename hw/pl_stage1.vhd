@@ -8,9 +8,8 @@ entity pl_stage1 is
     Port (
         clk             : in std_logic;
 
-        -- communication with IRAM
-        iram_addr       : out MemWordAddr;
         iram_dout       : in Instr_Type;
+        st1in           : in Stage_0_1_Interface;
 
         -- communication with Register File
         reg_idx1        : out Reg_Index;
@@ -20,24 +19,12 @@ entity pl_stage1 is
 
         st1out          : out Stage_1_2_Interface;
 
-        -- inputs back from stage 2
-        branch_flag     : in std_logic;
-        branch_dest     : in MemWordAddr;
-
-        -- inputs from pipeline hazard logic
-
-        -- if '1', pc won't be updated to next_pc, so instruction in stage 1
-        -- will be repeated. (stage 1 should of course also be invalidated using
-        -- st1out.invalid_flag.) in case of branch from stage 2, stall of stage
-        -- 1 will be ignored; it should have been invalidated anyway.
-        stall_flag      : in std_logic);
+        -- input back from stage 2
+        branch_flag     : in std_logic);
 end pl_stage1;
 
 
 architecture Behavioral of pl_stage1 is
-    signal pc           : MemWordAddr;
-    signal pc_plus_2    : MemWordAddr;
-    signal next_pc      : MemWordAddr;
     signal cur_opcode   : Opcode_Type;
 
     -- instruction fields
@@ -49,17 +36,6 @@ architecture Behavioral of pl_stage1 is
     signal addr8        : std_logic_vector(7 downto 0);
     signal link_flag    : std_logic;  -- part of jump opcodes
 begin
-
-    sync_proc : process(clk)
-    begin
-        if rising_edge(clk) then
-            pc <= next_pc;
-        end if;
-    end process;
-
-    pc_plus_2 <= std_logic_vector(unsigned(pc) + 1);
-
-    iram_addr <= pc;
 
     opcode_fld <= iram_dout(17 downto 12);
     rd         <= iram_dout(11 downto 8);
@@ -79,6 +55,12 @@ begin
     -- feed Register File outputs directly to stage 1 output
     st1out.value1.reg_val <= reg_dout1;
     st1out.value2.reg_val <= reg_dout2;
+
+    -- invalidate instructions following taken branches and any other
+    -- instructions stage 0 thinks should be invalidated
+    st1out.invalid_flag <= branch_flag or st1in.invalid_flag;
+
+    st1out.pc_plus_2 <= st1in.pc_plus_2;
 
 
     with opcode_fld select cur_opcode <=
@@ -119,10 +101,11 @@ begin
         opc_break   when others;
 
     -- decide on stage 1 outputs
-    outputs_proc : process(cur_opcode, pc_plus_2,
+    outputs_proc : process(cur_opcode, st1in.pc_plus_2,
         opcode_grp, rd, rs, rt, imm8, addr12, addr8, link_flag)
     begin
-        -- first set default values
+        -- first set default values (except for values decided
+        -- elsewhere)
         st1out.alu_op           <= aluop_add;
         st1out.value1.use_reg   <= '0';
         st1out.value1.imm       <= (others => '0');
@@ -132,7 +115,6 @@ begin
         st1out.branch_dest      <= (others => '-');
         st1out.wr_type          <= wr_none;
         st1out.wr_reg_idx       <= (others => '-');
-        st1out.pc_plus_2        <= pc_plus_2;
 
         case opcode_grp is
             -- group 0: IFmt_Math3, IFmt_Math2; group 1: IFmt_Imm8
@@ -204,7 +186,7 @@ begin
                     when opc_j | opc_jal =>
                         st1out.branch_type <= b_always_imm;
                         st1out.branch_dest <= MemWordAddr(
-                            signed(pc_plus_2) + resize(signed(addr12), 13));
+                            signed(st1in.pc_plus_2) + resize(signed(addr12), 13));
 
                     when opc_jr | opc_jalr =>
                         -- note we'll be using the value of $rt as the branch
@@ -219,12 +201,12 @@ begin
                     when opc_beqz =>
                         st1out.branch_type <= b_eqz;
                         st1out.branch_dest <= MemWordAddr(
-                            signed(pc_plus_2) + resize(signed(addr8), 13));
+                            signed(st1in.pc_plus_2) + resize(signed(addr8), 13));
 
                     when opc_bnez =>
                         st1out.branch_type <= b_nez;
                         st1out.branch_dest <= MemWordAddr(
-                            signed(pc_plus_2) + resize(signed(addr8), 13));
+                            signed(st1in.pc_plus_2) + resize(signed(addr8), 13));
 
                     when others => null; -- invalid instr., use defaults
                 end case;
@@ -283,25 +265,6 @@ begin
 
             when others => null; -- impossible
         end case;
-    end process;
-
-    next_pc_proc : process(pc, pc_plus_2, stall_flag, branch_flag, branch_dest)
-    begin
-        if branch_flag = '1' then
-            next_pc <= branch_dest;
-            -- previous instruction branched, ignore instruction we read in
-            -- this cycle
-            st1out.invalid_flag <= '1';
-
-        elsif stall_flag = '1' then
-            next_pc <= pc;
-            -- instruction is stalling. ignore it for one cycle.
-            st1out.invalid_flag <= '1';
-
-        else
-            next_pc <= pc_plus_2;
-            st1out.invalid_flag <= '0';
-        end if;
     end process;
 
 end Behavioral;
