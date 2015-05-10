@@ -49,11 +49,11 @@ begin
     begin
         if rising_edge(clka) then
             if ena = '1' then
+                douta <= data(to_integer(unsigned(tmp_addra)));
+
                 if wea = "1" then
                     data(to_integer(unsigned(tmp_addra))) := dina;
                 end if;
-
-                douta <= data(to_integer(unsigned(tmp_addra)));
             end if;
         end if;
     end process;
@@ -62,11 +62,11 @@ begin
     begin
         if rising_edge(clkb) then
             if enb = '1' then
+                doutb <= data(to_integer(unsigned(tmp_addrb)));
+
                 if web = "1" then
                     data(to_integer(unsigned(tmp_addrb))) := dinb;
                 end if;
-
-                doutb <= data(to_integer(unsigned(tmp_addrb)));
             end if;
         end if;
     end process;
