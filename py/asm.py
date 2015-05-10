@@ -59,7 +59,7 @@ grOperand = ~FollowedBy(grOpcode) + (
 grOperand.setParseAction(lambda s,loc,toks: toks[0])
 
 grOpcodeStmt = (grOpcode
-    - Optional(delimitedList(grOperand)))
+    - Optional(delimitedList(grOperand) + ~FollowedBy(':')))
 grOpcodeStmt.setParseAction(
     lambda s,loc,toks: OpcodeStmt(toks[0], toks[1:]))
 
