@@ -28,7 +28,9 @@ end pl_stage0;
 
 architecture Behavioral of pl_stage0 is
     -- value of $pc, $pc+2 for IRAM output
-    signal pc           : MemWordAddr;
+    signal pc           : MemWordAddr
+        -- will be incremented to 0 on first cycle
+        := (others => '1');
     signal pc_plus_2    : MemWordAddr;
     -- value of $pc for next instruction
     signal next_pc      : MemWordAddr;
