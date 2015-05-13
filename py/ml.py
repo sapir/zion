@@ -76,8 +76,8 @@ OPCODES = {
     'or':   _O(0x05, IFmt_Math3),
     'nor':  _O(0x06, IFmt_Math3),   # nor w/ self to get not
     'xor':  _O(0x07, IFmt_Math3),
-    'sll':  _O(0x08, IFmt_Math3),
-    'srl':  _O(0x09, IFmt_Math3),
+    'sll':  _O(0x08, IFmt_Math3_shift),
+    'srl':  _O(0x09, IFmt_Math3_shift),
     'exts': _O(0x0a, IFmt_Math2),   # also like Math3. rs is ignored.
 
     # Opcode group 1: reg+imm math & logic
