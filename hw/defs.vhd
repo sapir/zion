@@ -64,6 +64,8 @@ package defs is
             fwd_val : Logic_Word;
         end record;
 
+    -- note that unlike other stage interfaces, Stage 0 output flip-flops are
+    -- managed internally by stage 0
     type Stage_0_1_Interface is
         record
             pc_plus_2   : MemWordAddr;

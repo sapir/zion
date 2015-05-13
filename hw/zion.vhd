@@ -165,7 +165,8 @@ architecture Behavioral of zion is
     -- dcm output
     signal dcm_clk              : std_logic;
 
-    signal st0out, st1in : Stage_0_1_Interface;
+    -- no separate st1in as st0out has internal flip-flops
+    signal st0out : Stage_0_1_Interface;
     -- explicit initialization to avoid an optimization warning
     signal st1out, st2in : Stage_1_2_Interface := Stage_1_2_Interface_zero;
     signal st2out, st3in : Stage_2_3_Interface;
@@ -255,7 +256,7 @@ begin
     inst_pl_stage1: pl_stage1 PORT MAP(
         clk             => dcm_clk,
         iram_dout       => iram_douta,
-        st1in           => st1in,
+        st1in           => st0out,
         reg_idx1        => reg_idx1,
         reg_idx2        => reg_idx2,
         reg_dout1       => reg_dout1,
@@ -313,7 +314,7 @@ begin
     sync_proc : process(dcm_clk)
     begin
         if rising_edge(dcm_clk) then
-            st1in <= st0out;
+            -- no need to copy st0out, see Stage_0_1_Interface
             st2in <= st1out;
             st3in <= st2out;
         end if;

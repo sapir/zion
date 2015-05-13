@@ -48,6 +48,8 @@ begin
     -- IRAM output will be updated on next clock cycle
     iram_addr <= next_pc;
 
+    -- no output flip-flop, so value in st0out matches value of $pc + 2 for
+    -- currently output instruction
     st0out.pc_plus_2 <= pc_plus_2;
 
     next_pc_proc : process(pc, pc_plus_2, st1_stall_flag,
