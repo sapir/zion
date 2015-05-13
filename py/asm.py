@@ -65,7 +65,10 @@ grOpcodeStmt.setParseAction(
 
 grStatement = grLabel | grOpcodeStmt
 
+grComment = ';' + restOfLine
+
 grProgram = OneOrMore(grStatement)
+grProgram.ignore(grComment)
 
 
 def _encodeOperand(fieldName, value, curStmtIndex, labels):
