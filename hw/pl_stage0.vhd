@@ -45,9 +45,6 @@ begin
     -- IRAM addrs omit lowest bit, so +1 is effectively +2
     pc_plus_2 <= std_logic_vector(unsigned(pc) + 1);
 
-    -- IRAM output will be updated on next clock cycle
-    iram_addr <= next_pc;
-
     -- no output flip-flop, so value in st0out matches value of $pc + 2 for
     -- currently output instruction
     st0out.pc_plus_2 <= pc_plus_2;
@@ -66,5 +63,8 @@ begin
             next_pc <= pc_plus_2;
         end if;
     end process;
+
+    -- IRAM output will be updated on next clock cycle
+    iram_addr <= next_pc;
 
 end Behavioral;
