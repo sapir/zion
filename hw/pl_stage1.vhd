@@ -20,7 +20,12 @@ entity pl_stage1 is
         st1out          : out Stage_1_2_Interface;
 
         -- input back from stage 2
-        branch_flag     : in std_logic);
+        branch_flag     : in std_logic;
+
+        -- inputs from pipeline hazard logic
+
+        -- see st1_stall_flag in pl_stage0 inputs
+        st1_stall_flag  : in std_logic);
 end pl_stage1;
 
 
@@ -56,9 +61,8 @@ begin
     st1out.value1.reg_val <= reg_dout1;
     st1out.value2.reg_val <= reg_dout2;
 
-    -- invalidate instructions following taken branches and any other
-    -- instructions stage 0 thinks should be invalidated
-    st1out.invalid_flag <= branch_flag or st1in.invalid_flag;
+    -- invalidate instructions on stalls and following taken branches
+    st1out.invalid_flag <= st1_stall_flag or branch_flag;
 
     st1out.pc_plus_2 <= st1in.pc_plus_2;
 

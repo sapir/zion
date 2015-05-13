@@ -93,7 +93,7 @@ architecture Behavioral of zion is
         st0out          : out Stage_0_1_Interface;
         branch_flag     : in std_logic;
         branch_dest     : in MemWordAddr;
-        stall_flag      : in std_logic);
+        st1_stall_flag  : in std_logic);
     END COMPONENT;
 
     COMPONENT pl_stage1
@@ -106,7 +106,8 @@ architecture Behavioral of zion is
         reg_dout1       : in Logic_Word;
         reg_dout2       : in Logic_Word;
         st1out          : out Stage_1_2_Interface;
-        branch_flag     : in std_logic);
+        branch_flag     : in std_logic;
+        st1_stall_flag  : in std_logic);
     END COMPONENT;
 
     COMPONENT pl_stage2
@@ -157,7 +158,7 @@ architecture Behavioral of zion is
         st3_pc_plus_2       : in MemWordAddr;
         st2_reg1_fwd        : out FwdValue;
         st2_reg2_fwd        : out FwdValue;
-        st0_stall_flag      : out std_logic);
+        st1_stall_flag      : out std_logic);
     END COMPONENT;
 
 
@@ -169,7 +170,7 @@ architecture Behavioral of zion is
     signal st1out, st2in : Stage_1_2_Interface := Stage_1_2_Interface_zero;
     signal st2out, st3in : Stage_2_3_Interface;
 
-    signal st0_stall_flag               : std_logic;
+    signal st1_stall_flag               : std_logic;
     signal st2_reg1_fwd, st2_reg2_fwd   : FwdValue;
     signal branch_flag                  : std_logic;
     signal branch_dest                  : MemWordAddr;
@@ -244,23 +245,24 @@ begin
 
 
     inst_pl_stage0: pl_stage0 PORT MAP(
-        clk         => dcm_clk,
-        iram_addr   => iram_addra,
-        st0out      => st0out,
-        branch_flag => branch_flag,
-        branch_dest => branch_dest,
-        stall_flag  => st0_stall_flag);
+        clk             => dcm_clk,
+        iram_addr       => iram_addra,
+        st0out          => st0out,
+        branch_flag     => branch_flag,
+        branch_dest     => branch_dest,
+        st1_stall_flag  => st1_stall_flag);
 
     inst_pl_stage1: pl_stage1 PORT MAP(
-        clk         => dcm_clk,
-        iram_dout   => iram_douta,
-        st1in       => st1in,
-        reg_idx1    => reg_idx1,
-        reg_idx2    => reg_idx2,
-        reg_dout1   => reg_dout1,
-        reg_dout2   => reg_dout2,
-        st1out      => st1out,
-        branch_flag => branch_flag);
+        clk             => dcm_clk,
+        iram_dout       => iram_douta,
+        st1in           => st1in,
+        reg_idx1        => reg_idx1,
+        reg_idx2        => reg_idx2,
+        reg_dout1       => reg_dout1,
+        reg_dout2       => reg_dout2,
+        st1out          => st1out,
+        branch_flag     => branch_flag,
+        st1_stall_flag  => st1_stall_flag);
 
     inst_pl_stage2: pl_stage2 PORT MAP(
         clk         => dcm_clk,
@@ -305,7 +307,7 @@ begin
         st3_pc_plus_2   => st3in.pc_plus_2,
         st2_reg1_fwd    => st2_reg1_fwd,
         st2_reg2_fwd    => st2_reg2_fwd,
-        st0_stall_flag  => st0_stall_flag);
+        st1_stall_flag  => st1_stall_flag);
 
 
     sync_proc : process(dcm_clk)

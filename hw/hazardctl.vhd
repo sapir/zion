@@ -42,8 +42,8 @@ entity hazardctl is
         -- hazard detected in previous instruction's stage 1)
         st2_reg1_fwd        : out FwdValue;
         st2_reg2_fwd        : out FwdValue;
-        -- tell stage 0 whether to stall
-        st0_stall_flag      : out std_logic);
+        -- tell stage 1 (and 0) whether to stall
+        st1_stall_flag      : out std_logic);
 end hazardctl;
 
 
@@ -97,7 +97,7 @@ begin
         -- and don't stall.
         st1_reg1_src <= rvs_st1;
         st1_reg2_src <= rvs_st1;
-        st0_stall_flag <= '0';
+        st1_stall_flag <= '0';
 
         -- forward values from stage 2
         case st2_wr_type is
@@ -116,7 +116,7 @@ begin
             when wr_memb_to_reg | wr_memw_to_reg =>
                 -- if stage 2 wants to read value from memory, no way we can
                 -- handle it in time. stage 1 will have to wait one cycle.
-                st0_stall_flag <= '1';
+                st1_stall_flag <= '1';
 
             when wr_pc_plus_2_to_ra =>
                 -- like case of writing ALU result, but using $pc+2 instead
