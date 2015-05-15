@@ -32,6 +32,8 @@ entity hazardctl is
         -- register that stage 2 is writing (and how)
         st2_wr_type         : in Write_Type;
         st2_wr_reg_idx      : in Reg_Index;
+        -- whether stage 2 was invalided (making writes irrelevant)
+        st2_invalid_flag    : in std_logic;
 
         -- values that just arrived at stage 3
         st3_alu_res         : in Logic_Word;
@@ -91,7 +93,9 @@ begin
 
 
     st1_data_hazard_proc : process(st1_reg1_idx, st1_reg2_idx,
-        st2_wr_type, st2_wr_reg_idx)
+        st2_wr_type, st2_wr_reg_idx, st2_invalid_flag)
+
+        variable effective_st2_wr_type : Write_Type;
     begin
         -- default: use values from stage 1 unless there's a data hazard,
         -- and don't stall.
@@ -99,8 +103,15 @@ begin
         st1_reg2_src <= rvs_st1;
         st1_stall_flag <= '0';
 
+        -- ignore writes for invalidated instructions
+        if st2_invalid_flag = '1' then
+            effective_st2_wr_type := wr_none;
+        else
+            effective_st2_wr_type := st2_wr_type;
+        end if;
+
         -- forward values from stage 2
-        case st2_wr_type is
+        case effective_st2_wr_type is
             when wr_alu_to_reg =>
                 -- if stage 2 is calculating value to be written with ALU,
                 -- then instruction in stage 1 should use that value once it

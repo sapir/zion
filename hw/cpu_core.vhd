@@ -130,6 +130,7 @@ architecture Behavioral of cpu_core is
         st1_reg2_idx        : in Reg_Index;
         st2_wr_type         : in Write_Type;
         st2_wr_reg_idx      : in Reg_Index;
+        st2_invalid_flag    : in std_logic;
         st3_alu_res         : in Logic_Word;
         st3_pc_plus_2       : in MemWordAddr;
         st2_reg1_fwd        : out FwdValue;
@@ -216,16 +217,17 @@ begin
         io_reg_inp  => io_leds_inp);
 
     inst_hazardctl : hazardctl PORT MAP(
-        clk             => clk,
-        st1_reg1_idx    => reg_idx1,
-        st1_reg2_idx    => reg_idx2,
-        st2_wr_type     => st2in.wr_type,
-        st2_wr_reg_idx  => st2in.wr_reg_idx,
-        st3_alu_res     => st3in.alu_res,
-        st3_pc_plus_2   => st3in.pc_plus_2,
-        st2_reg1_fwd    => st2_reg1_fwd,
-        st2_reg2_fwd    => st2_reg2_fwd,
-        st1_stall_flag  => st1_stall_flag);
+        clk                 => clk,
+        st1_reg1_idx        => reg_idx1,
+        st1_reg2_idx        => reg_idx2,
+        st2_wr_type         => st2in.wr_type,
+        st2_wr_reg_idx      => st2in.wr_reg_idx,
+        st2_invalid_flag    => st2in.invalid_flag,
+        st3_alu_res         => st3in.alu_res,
+        st3_pc_plus_2       => st3in.pc_plus_2,
+        st2_reg1_fwd        => st2_reg1_fwd,
+        st2_reg2_fwd        => st2_reg2_fwd,
+        st1_stall_flag      => st1_stall_flag);
 
 
     sync_proc : process(clk)
