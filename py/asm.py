@@ -18,7 +18,7 @@ RegOffset = namedtuple('RegOffset', 'reg ofs')
 OpcodeStmt = namedtuple('OpcodeStmt', 'opcode operands')
 
 
-MACRO_OPCODES = 'nop li move'.split()
+MACRO_OPCODES = 'nop li move halt'.split()
 
 
 def oneOfKeywords(words):
@@ -159,6 +159,9 @@ def expandMacros(stmt):
     elif stmt.opcode == 'move':
         rd, rt = stmt.operands
         return [OpcodeStmt('add', [rd, Register('$zero'), rt])]
+
+    elif stmt.opcode == 'halt':
+        return [OpcodeStmt('j', [-1])]
 
     return [stmt]
 
