@@ -40,8 +40,8 @@ grOpcode.setParseAction(lambda s,loc,toks: Opcode(toks[0]))
 grRegister = oneOfKeywords(REGISTER_NAMES.keys())
 grRegister.setParseAction(lambda s,loc,toks: Register(toks[0]))
 
-grDecNumber = Word(nums, asKeyword=True)
-grHexNumber = Combine('0x' - Word(hexnums))
+grDecNumber = Combine(Optional('-') + Word(nums, asKeyword=True))
+grHexNumber = Combine(Optional('-') + '0x' - Word(hexnums))
 grNumber = grDecNumber | grHexNumber
 grNumber.setParseAction(lambda s,loc,toks: int(toks[0], 0))
 
