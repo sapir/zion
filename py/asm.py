@@ -99,11 +99,15 @@ def _encodeOperand(fieldName, value, curStmtIndex, labels):
         return value
 
     elif fieldName.startswith('addr'):
-        assert isinstance(value, Label)
+        assert isinstance(value, (Label, int))
 
-        nextStmtIndex = curStmtIndex + 1
-        labelIndex = labels[value]
-        ofs = labelIndex - nextStmtIndex
+        if isinstance(value, Label):
+            nextStmtIndex = curStmtIndex + 1
+            labelIndex = labels[value]
+            ofs = labelIndex - nextStmtIndex
+        else:
+            assert isinstance(value, int)
+            ofs = value
 
         if fieldName == 'addr8':
             assert -128 <= ofs < 128, \
