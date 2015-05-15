@@ -94,33 +94,33 @@ architecture Behavioral of cpu_core is
         reg2_fwd        : in FwdValue;
         branch_flag     : out std_logic;
         branch_dest     : out MemWordAddr;
-        st2out          : in Stage_2_3_Interface);
+        st2out          : out Stage_2_3_Interface;
+        iram_en         : out std_logic;
+        iram_we         : out lvbit;
+        iram_addr       : out MemWordAddr;
+        iram_din        : out Instr_Type;
+        dram_ena        : out std_logic;
+        dram_wea        : out lvbit;
+        dram_addra      : out DataByteAddr;
+        dram_dina       : out Logic_Byte;
+        dram_enb        : out std_logic;
+        dram_web        : out lvbit;
+        dram_addrb      : out DataByteAddr;
+        dram_dinb       : out Logic_Byte;
+        io_reg_we       : out lvbit;
+        io_reg_inp      : out Logic_Byte);
     END COMPONENT;
 
     COMPONENT pl_stage3
     PORT(
         clk             : in std_logic;
         st3in           : in Stage_2_3_Interface;
-        iram_en         : out std_logic;
-        iram_we         : out lvbit;
-        iram_addr       : out MemWordAddr;
-        iram_din        : out Instr_Type;
         iram_dout       : in Instr_Type;
-        dram_ena        : out std_logic;
-        dram_wea        : out lvbit;
-        dram_addra      : out DataByteAddr;
-        dram_dina       : out Logic_Byte;
         dram_douta      : in Logic_Byte;
-        dram_enb        : out std_logic;
-        dram_web        : out lvbit;
-        dram_addrb      : out DataByteAddr;
-        dram_dinb       : out Logic_Byte;
         dram_doutb      : in Logic_Byte;
         wr_reg_en       : out std_logic;
         wr_reg_idx      : out Reg_Index;
-        wr_reg_data     : out Logic_Word;
-        io_reg_we       : out lvbit;
-        io_reg_inp      : out Logic_Byte);
+        wr_reg_data     : out Logic_Word);
     END COMPONENT;
 
     COMPONENT hazardctl
@@ -190,31 +190,31 @@ begin
         reg2_fwd    => st2_reg2_fwd,
         branch_flag => branch_flag,
         branch_dest => branch_dest,
-        st2out      => st2out);
-
-    inst_pl_stage3: pl_stage3 PORT MAP(
-        clk         => clk,
-        st3in       => st3in,
+        st2out      => st2out,
         iram_en     => iram_enb,
         iram_we     => iram_web,
         iram_addr   => iram_addrb,
         iram_din    => iram_dinb,
-        iram_dout   => iram_doutb,
         dram_ena    => dram_ena,
         dram_wea    => dram_wea,
         dram_addra  => dram_addra,
         dram_dina   => dram_dina,
-        dram_douta  => dram_douta,
         dram_enb    => dram_enb,
         dram_web    => dram_web,
         dram_addrb  => dram_addrb,
         dram_dinb   => dram_dinb,
+        io_reg_we   => io_leds_we,
+        io_reg_inp  => io_leds_inp);
+
+    inst_pl_stage3: pl_stage3 PORT MAP(
+        clk         => clk,
+        st3in       => st3in,
+        iram_dout   => iram_doutb,
+        dram_douta  => dram_douta,
         dram_doutb  => dram_doutb,
         wr_reg_en   => wr_reg_en,
         wr_reg_idx  => wr_reg_idx,
-        wr_reg_data => wr_reg_data,
-        io_reg_we   => io_leds_we,
-        io_reg_inp  => io_leds_inp);
+        wr_reg_data => wr_reg_data);
 
     inst_hazardctl : hazardctl PORT MAP(
         clk                 => clk,

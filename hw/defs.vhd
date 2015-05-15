@@ -127,9 +127,15 @@ package defs is
             others      => (others => '0'));
 
 
+    -- memory object to use for memory read/write operations
+    type MemObject_Type is (mo_dram, mo_iram, mo_io);
+
     type Stage_2_3_Interface is
         record
             alu_res     : Logic_Word;
+
+            -- memory object to use for current operation
+            cur_memobj  : MemObject_Type;
 
             -- copied from stages 0 & 1
             wr_type     : Write_Type;   -- rather than forward invalid_flag to
