@@ -116,7 +116,12 @@ begin
             when wr_memb_to_reg | wr_memw_to_reg =>
                 -- if stage 2 wants to read value from memory, no way we can
                 -- handle it in time. stage 1 will have to wait one cycle.
-                st1_stall_flag <= '1';
+                if st2_wr_reg_idx = st1_reg1_idx
+                    or st2_wr_reg_idx = st1_reg2_idx then
+
+                    st1_stall_flag <= '1';
+
+                end if;
 
             when wr_pc_plus_2_to_ra =>
                 -- like case of writing ALU result, but using $pc+2 instead
