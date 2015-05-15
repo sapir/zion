@@ -142,8 +142,6 @@ package defs is
                                             -- stage 3, this just gets set to
                                             -- wr_none
             wr_reg_idx  : Reg_Index;
-            reg2_val    : Logic_Word;   -- not necessarily copied from stage 1
-                                            -- due to data hazard handling
             pc_plus_2   : MemWordAddr;
         end record;
 
