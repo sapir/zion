@@ -105,7 +105,7 @@ package defs is
             -- on ALU inputs, when in fact we already know the correct values.
             branch_dest : MemWordAddr;
 
-            -- inputs to stages 3 & 4
+            -- inputs to stage 3
             wr_type     : Write_Type;
             wr_reg_idx  : Reg_Index;
 
