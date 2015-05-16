@@ -34,7 +34,6 @@ architecture Behavioral of pl_stage0 is
     signal pc_plus_2    : MemWordAddr;
     -- value of $pc for next instruction
     signal next_pc      : MemWordAddr;
-    signal cur_opcode   : Opcode_Type;
 begin
 
     sync_proc : process(clk)
