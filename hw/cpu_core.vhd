@@ -128,7 +128,8 @@ architecture Behavioral of cpu_core is
         clk                 : in std_logic;
         st1_reg1_idx        : in Reg_Index;
         st1_reg2_idx        : in Reg_Index;
-        st2_wr_type         : in Write_Type;
+        st2_wr_reg_en       : in std_logic;
+        st2_wr_reg_src      : in RegWriteSrc_Type;
         st2_wr_reg_idx      : in Reg_Index;
         st2_invalid_flag    : in std_logic;
         st3_alu_res         : in Logic_Word;
@@ -220,7 +221,8 @@ begin
         clk                 => clk,
         st1_reg1_idx        => reg_idx1,
         st1_reg2_idx        => reg_idx2,
-        st2_wr_type         => st2in.wr_type,
+        st2_wr_reg_en       => st2in.wr_reg_en,
+        st2_wr_reg_src      => st2in.wr_reg_src,
         st2_wr_reg_idx      => st2in.wr_reg_idx,
         st2_invalid_flag    => st2in.invalid_flag,
         st3_alu_res         => st3in.alu_res,

@@ -29,34 +29,30 @@ begin
     st3_output_proc : process(st3in, dram_douta, dram_doutb, iram_dout)
     begin
 
-        wr_reg_idx   <= st3in.wr_reg_idx;
+        wr_reg_en   <= st3in.wr_reg_en;
+        wr_reg_idx  <= st3in.wr_reg_idx;
 
-        case st3in.wr_type is
-            when wr_alu_to_reg =>
-                wr_reg_data  <= st3in.alu_res;
-                wr_reg_en    <= '1';
+        case st3in.wr_reg_src is
+            when rws_alu =>
+                wr_reg_data <= st3in.alu_res;
 
-            when wr_memb_to_reg =>
-                wr_reg_data  <= "00000000" & dram_douta;
-                wr_reg_en    <= '1';
-
-            when wr_memw_to_reg =>
+            when rws_mem =>
                 if st3in.cur_memobj = mo_iram then
                     wr_reg_data <= iram_dout(15 downto 0); -- TODO
                 else
                     -- assume dram - I/O doesn't support reads
-                    wr_reg_data <= dram_douta & dram_doutb;
+                    if st3in.mem_type = ma_byte then
+                        wr_reg_data <= "00000000" & dram_douta;
+                    else -- ma_word
+                        wr_reg_data <= dram_douta & dram_doutb;
+                    end if;
                 end if;
 
-                wr_reg_en    <= '1';
-
-            when wr_pc_plus_2_to_ra =>
-                wr_reg_data  <= mem_addr_to_word(st3in.pc_plus_2);
-                wr_reg_en    <= '1';
+            when rws_pc_plus_2 =>
+                wr_reg_data <= mem_addr_to_word(st3in.pc_plus_2);
 
             when others =>
-                wr_reg_data  <= (others => '-');
-                wr_reg_en    <= '0';
+                wr_reg_data <= (others => '-');
         end case;
     end process;
 

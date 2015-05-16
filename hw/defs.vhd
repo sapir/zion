@@ -80,8 +80,8 @@ package defs is
         end record;
 
     type Branch_Type is (b_none, b_always_imm, b_always_reg, b_eqz, b_nez);
-    type Write_Type is (wr_none, wr_alu_to_reg, wr_memb_to_reg, wr_memw_to_reg,
-        wr_reg_to_memb, wr_reg_to_memw, wr_pc_plus_2_to_ra);
+    type RegWriteSrc_Type is (rws_alu, rws_mem, rws_pc_plus_2);
+    type MemAccess_Type is (ma_byte, ma_word);
 
     type Stage_1_2_Interface is
         record
@@ -105,8 +105,12 @@ package defs is
             -- on ALU inputs, when in fact we already know the correct values.
             branch_dest : MemWordAddr;
 
+            mem_wr_en   : std_logic;
+            mem_type    : MemAccess_Type;
+
             -- inputs to stage 3
-            wr_type     : Write_Type;
+            wr_reg_en   : std_logic;
+            wr_reg_src  : RegWriteSrc_Type;
             wr_reg_idx  : Reg_Index;
 
             -- copied from stage 0
@@ -123,7 +127,10 @@ package defs is
                             reg_val => (others => '0'),
                             use_reg => '0'),
             branch_type => b_none,
-            wr_type     => wr_none,
+            mem_wr_en   => '0',
+            mem_type    => ma_byte,
+            wr_reg_en   => '0',
+            wr_reg_src  => rws_alu,
             others      => (others => '0'));
 
 
@@ -138,9 +145,11 @@ package defs is
             cur_memobj  : MemObject_Type;
 
             -- copied from stages 0 & 1
-            wr_type     : Write_Type;   -- rather than forward invalid_flag to
+            mem_type    : MemAccess_Type;
+            wr_reg_en   : std_logic;    -- rather than forward invalid_flag to
                                             -- stage 3, this just gets set to
                                             -- wr_none
+            wr_reg_src  : RegWriteSrc_Type;
             wr_reg_idx  : Reg_Index;
             pc_plus_2   : MemWordAddr;
         end record;

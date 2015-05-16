@@ -64,8 +64,6 @@ architecture Behavioral of pl_stage2 is
 
     signal alu_res : Logic_Word;
 
-    signal cur_memobj : MemObject_Type;
-
 begin
 
     final_reg1_val <= reg1_fwd.fwd_val when reg1_fwd.use_fwd = '1'
@@ -82,9 +80,10 @@ begin
         else st2in.value2.imm;
 
 
-    -- copy values from stage 1 (with a few overrides)
-    st2out.wr_type      <= wr_none when st2in.invalid_flag = '1'
-                                else st2in.wr_type;
+    -- copy values from stage 1 (with some overrides)
+    st2out.mem_type     <= st2in.mem_type;
+    st2out.wr_reg_en    <= st2in.wr_reg_en and not st2in.invalid_flag;
+    st2out.wr_reg_src   <= st2in.wr_reg_src;
     st2out.wr_reg_idx   <= st2in.wr_reg_idx;
     st2out.pc_plus_2    <= st2in.pc_plus_2;
 
@@ -135,7 +134,9 @@ begin
     end process;
 
 
-    st3_mem_inps_proc : process(alu_res, final_reg2_val, st2in.wr_type)
+    st3_mem_inps_proc : process(alu_res, final_reg2_val,
+        st2in.mem_wr_en, st2in.mem_type)
+
         -- 16-bit address we're reading/writing
         constant mem_addr   : Logic_Word    := alu_res;
 
@@ -149,86 +150,74 @@ begin
 
         variable tmp_dram_addra, tmp_dram_addrb : DataByteAddr;
     begin
-        -- default values:
-
+        -- set address inputs
         tmp_dram_addra := mem_addr(10 downto 0);
         tmp_dram_addrb := std_logic_vector(unsigned(tmp_dram_addra) + 1);
 
-        dram_ena        <= '0';
-        dram_wea        <= "0";
-        dram_addra      <= tmp_dram_addra;
-        dram_dina       <= (others => '-');
-        dram_enb        <= '0';
-        dram_web        <= "0";
-        dram_addrb      <= tmp_dram_addrb;
-        dram_dinb       <= (others => '-');
-        iram_en         <= '0';
-        iram_we         <= "0";
-        iram_addr       <= mem_addr(13 downto 1);   -- ignore lsb
-        iram_din        <= "00" & wr_val; -- TODO
-        io_reg_we       <= "0";
-        io_reg_inp      <= (others => '-');
+        dram_addra  <= tmp_dram_addra;
+        dram_addrb  <= tmp_dram_addrb;
+        iram_addr   <= mem_addr(13 downto 1);   -- ignore lsb
 
+        -- set write enable bits by mem_wr_en
+        dram_wea    <= "0";
+        dram_web    <= "0";
+        iram_we     <= "0";
+        if st2in.mem_wr_en = '1' then
+            dram_wea <= "1";
+            if st2in.mem_type = ma_word then
+                dram_web <= "1";
+            end if;
 
+            iram_we <= "1";
+
+            -- io_reg_we is handled later as it doesn't have a separate
+            -- enable bit
+        end if;
+
+        -- set data to write by mem_type
+        iram_din <= "00" & wr_val; -- TODO
+        io_reg_inp <= wr_val_lo;
+        case st2in.mem_type is
+            when ma_byte =>
+                dram_dina <= wr_val_lo;
+                dram_dinb <= (others => '-');
+
+            when ma_word =>
+                dram_dina <= wr_val_hi;
+                dram_dinb <= wr_val_lo;
+
+            when others => null; -- impossible
+        end case;
+
+        -- set enable bits by memory address
+        dram_ena    <= '0';
+        dram_enb    <= '0';
+        iram_en     <= '0';
+        io_reg_we   <= "0";
         if mem_addr(15) = '1' then
             -- Memory-mapped IO
-            cur_memobj <= mo_io;
+            st2out.cur_memobj <= mo_io;
 
             -- only byte writes are supported
-            if mem_addr = iomem_addr_leds and st2in.wr_type = wr_reg_to_memb then
+            if st2in.mem_wr_en = '1' and st2in.mem_type = ma_byte
+                and mem_addr = iomem_addr_leds then
+
                 io_reg_we <= "1";
-                io_reg_inp <= wr_val_lo;
             end if;
 
         elsif mem_addr(14) = '1' then
             -- Instruction memory
-            cur_memobj <= mo_iram;
-
-            -- only word read/writes are supported
-            case st2in.wr_type is
-                when wr_reg_to_memw =>
-                    iram_en    <= '1';
-                    iram_we    <= "1";
-
-                when wr_memw_to_reg =>
-                    iram_en    <= '1';
-
-                when others =>
-                    -- use defaults
-            end case;
+            st2out.cur_memobj <= mo_iram;
+            iram_en <= '1';
 
         else
             -- Regular memory
-            cur_memobj <= mo_dram;
-
-            case st2in.wr_type is
-                when wr_reg_to_memb =>
-                    dram_ena    <= '1';
-                    dram_wea    <= "1";
-                    dram_dina   <= wr_val_lo;
-
-                when wr_reg_to_memw =>
-                    dram_ena    <= '1';
-                    dram_wea    <= "1";
-                    dram_dina   <= wr_val_hi;
-                    dram_enb    <= '1';
-                    dram_web    <= "1";
-                    dram_dinb   <= wr_val_lo;
-
-                when wr_memb_to_reg =>
-                    dram_ena    <= '1';
-
-                when wr_memw_to_reg =>
-                    dram_ena    <= '1';
-                    dram_enb    <= '1';
-
-                when others =>
-                    -- use defaults
-            end case;
+            st2out.cur_memobj <= mo_dram;
+            dram_ena <= '1';
+            dram_enb <= '1';
         end if;
     end process;
 
     st2out.alu_res <= alu_res;
-    st2out.cur_memobj <= cur_memobj;
 
 end Behavioral;

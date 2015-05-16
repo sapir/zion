@@ -30,7 +30,8 @@ entity hazardctl is
         st1_reg2_idx        : in Reg_Index;
 
         -- register that stage 2 is writing (and how)
-        st2_wr_type         : in Write_Type;
+        st2_wr_reg_en       : in std_logic;
+        st2_wr_reg_src      : in RegWriteSrc_Type;
         st2_wr_reg_idx      : in Reg_Index;
         -- whether stage 2 was invalided (making writes irrelevant)
         st2_invalid_flag    : in std_logic;
@@ -51,20 +52,26 @@ end hazardctl;
 
 architecture Behavioral of hazardctl is
 
-    -- source of register values to use in stage 2
+    -- source of forwarded values to use in stage 2
     -- (from perspective of instruction running in stage 2, though this value
     -- is set in stage 1)
-    type RegValue_Src is (
-        -- use register value read in stage 1 (no forwarding)
-        rvs_st1,
+    type FwdSrc is (
         -- use ALU res passed to stage 3 from previous instruction's stage 2
-        rvs_st3_alu,
+        fs_st3_alu,
         -- use $pc + 2 value passed to stage 3
-        rvs_st3_pc_plus_2);
+        fs_st3_pc_plus_2);
 
-    signal st1_reg1_src, st1_reg2_src : RegValue_Src;
-    signal st2_reg1_src, st2_reg2_src : RegValue_Src;
+    -- how to perform forwarding
+    type FwdPlan is
+        record
+            use_fwd : std_logic;
+            fwd_src : FwdSrc;
+        end record;
 
+    signal st1_reg1_plan, st1_reg2_plan : FwdPlan;
+    signal st2_reg1_plan, st2_reg2_plan : FwdPlan;
+
+    signal st3_pc_plus_2_as_word : Logic_Word;
 begin
 
     sync_proc : process(clk)
@@ -72,59 +79,44 @@ begin
         if rising_edge(clk) then
             -- set values for stage 2 from values decided for previous cycle's
             -- stage 1
-            st2_reg1_src <= st1_reg1_src;
-            st2_reg2_src <= st1_reg2_src;
+            st2_reg1_plan <= st1_reg1_plan;
+            st2_reg2_plan <= st1_reg2_plan;
         end if;
     end process;
 
-    with st2_reg1_src select st2_reg1_fwd <=
-        (use_fwd => '1', fwd_val => st3_alu_res)        when rvs_st3_alu,
-        (use_fwd => '1', fwd_val => mem_addr_to_word(st3_pc_plus_2))
-                                                        when rvs_st3_pc_plus_2,
-        (use_fwd => '0', fwd_val => (others => '-'))    when rvs_st1,
-        (use_fwd => '0', fwd_val => (others => '-'))    when others;
+    st3_pc_plus_2_as_word <= mem_addr_to_word(st3_pc_plus_2);
 
-    with st2_reg2_src select st2_reg2_fwd <=
-        (use_fwd => '1', fwd_val => st3_alu_res)        when rvs_st3_alu,
-        (use_fwd => '1', fwd_val => mem_addr_to_word(st3_pc_plus_2))
-                                                        when rvs_st3_pc_plus_2,
-        (use_fwd => '0', fwd_val => (others => '-'))    when rvs_st1,
-        (use_fwd => '0', fwd_val => (others => '-'))    when others;
+    st2_reg1_fwd.use_fwd <= st2_reg1_plan.use_fwd;
+    st2_reg2_fwd.use_fwd <= st2_reg2_plan.use_fwd;
+
+    with st2_reg1_plan.fwd_src select st2_reg1_fwd.fwd_val <=
+        st3_alu_res             when fs_st3_alu,
+        st3_pc_plus_2_as_word   when fs_st3_pc_plus_2,
+        (others => '0')         when others;
+
+    with st2_reg2_plan.fwd_src select st2_reg2_fwd.fwd_val <=
+        st3_alu_res             when fs_st3_alu,
+        st3_pc_plus_2_as_word   when fs_st3_pc_plus_2,
+        (others => '0')         when others;
 
 
     st1_data_hazard_proc : process(st1_reg1_idx, st1_reg2_idx,
-        st2_wr_type, st2_wr_reg_idx, st2_invalid_flag)
+        st2_wr_reg_en, st2_wr_reg_src, st2_wr_reg_idx, st2_invalid_flag)
 
-        variable effective_st2_wr_type : Write_Type;
+        variable fwd_src : FwdSrc;
     begin
         -- default: use values from stage 1 unless there's a data hazard,
         -- and don't stall.
-        st1_reg1_src <= rvs_st1;
-        st1_reg2_src <= rvs_st1;
+        st1_reg1_plan.use_fwd <= '0';
+        st1_reg1_plan.fwd_src <= fs_st3_alu; -- doesn't matter
+        st1_reg2_plan.use_fwd <= '0';
+        st1_reg2_plan.fwd_src <= fs_st3_alu; -- doesn't matter
         st1_stall_flag <= '0';
 
+        -- forward values from stage 2.
         -- ignore writes for invalidated instructions
-        if st2_invalid_flag = '1' then
-            effective_st2_wr_type := wr_none;
-        else
-            effective_st2_wr_type := st2_wr_type;
-        end if;
-
-        -- forward values from stage 2
-        case effective_st2_wr_type is
-            when wr_alu_to_reg =>
-                -- if stage 2 is calculating value to be written with ALU,
-                -- then instruction in stage 1 should use that value once it
-                -- (the instr.) reaches stage 2 and the value reaches stage 3.
-                if st2_wr_reg_idx = st1_reg1_idx then
-                    st1_reg1_src <= rvs_st3_alu;
-                end if;
-
-                if st2_wr_reg_idx = st1_reg2_idx then
-                    st1_reg2_src <= rvs_st3_alu;
-                end if;
-
-            when wr_memb_to_reg | wr_memw_to_reg =>
+        if st2_wr_reg_en = '1' and st2_invalid_flag = '0' then
+            if st2_wr_reg_src = rws_mem then
                 -- if stage 2 wants to read value from memory, no way we can
                 -- handle it in time. stage 1 will have to wait one cycle.
                 if st2_wr_reg_idx = st1_reg1_idx
@@ -134,19 +126,36 @@ begin
 
                 end if;
 
-            when wr_pc_plus_2_to_ra =>
-                -- like case of writing ALU result, but using $pc+2 instead
-                if ra_reg_idx = st1_reg1_idx then
-                    st1_reg1_src <= rvs_st3_pc_plus_2;
+            else -- not trying to read from memory
+
+                case st2_wr_reg_src is
+                    -- if stage 2 is calculating value to be written with ALU,
+                    -- then instruction in stage 1 should use that value once it
+                    -- (the instr.) reaches stage 2 and the value reaches
+                    -- stage 3.
+                    when rws_alu =>
+                        fwd_src := fs_st3_alu;
+
+                    -- like case of writing ALU result, but using $pc+2 instead
+                    when rws_pc_plus_2 =>
+                        fwd_src := fs_st3_pc_plus_2;
+
+                    when others =>
+                        -- impossible
+                        fwd_src := fs_st3_alu;
+                end case;
+
+                if st2_wr_reg_idx = st1_reg1_idx then
+                    st1_reg1_plan.use_fwd <= '1';
+                    st1_reg1_plan.fwd_src <= fwd_src;
                 end if;
 
-                if ra_reg_idx = st1_reg2_idx then
-                    st1_reg2_src <= rvs_st3_pc_plus_2;
+                if st2_wr_reg_idx = st1_reg2_idx then
+                    st1_reg2_plan.use_fwd <= '1';
+                    st1_reg2_plan.fwd_src <= fwd_src;
                 end if;
-
-            when others =>
-                -- no data hazard
-        end case;
+            end if; -- if rws_mem
+        end if; -- if st2_wr_reg_en, st2_invalid_flag
     end process;
 
 end Behavioral;

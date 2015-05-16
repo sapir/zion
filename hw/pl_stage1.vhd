@@ -117,7 +117,10 @@ begin
         st1out.value2.imm       <= (others => '0');
         st1out.branch_type      <= b_none;
         st1out.branch_dest      <= (others => '-');
-        st1out.wr_type          <= wr_none;
+        st1out.mem_wr_en        <= '0';
+        st1out.mem_type         <= ma_word;
+        st1out.wr_reg_en        <= '0';
+        st1out.wr_reg_src       <= rws_alu;
         st1out.wr_reg_idx       <= (others => '-');
 
         case opcode_grp is
@@ -142,7 +145,8 @@ begin
                     when others => null;
                 end case;
 
-                st1out.wr_type <= wr_alu_to_reg;
+                st1out.wr_reg_en    <= '1';
+                st1out.wr_reg_src   <= rws_alu;
 
                 if opcode_grp = "00" then
                     -- IFmt_Math3/Math2
@@ -217,8 +221,9 @@ begin
 
                 -- link: save $pc+2 in $ra
                 if link_flag = '1' then
+                    st1out.wr_reg_en <= '1';
+                    st1out.wr_reg_src <= rws_pc_plus_2;
                     st1out.wr_reg_idx <= ra_reg_idx;
-                    st1out.wr_type <= wr_pc_plus_2_to_ra;
                 end if;
 
             -- group 3: everything else
@@ -238,11 +243,15 @@ begin
                         case cur_opcode is
                             -- for loads, write mem output to $rt
                             when opc_lb =>
-                                st1out.wr_type <= wr_memb_to_reg;
+                                st1out.mem_type <= ma_byte;
+                                st1out.wr_reg_en <= '1';
+                                st1out.wr_reg_src <= rws_mem;
                                 st1out.wr_reg_idx <= rt;
 
                             when opc_lw =>
-                                st1out.wr_type <= wr_memw_to_reg;
+                                st1out.mem_type <= ma_word;
+                                st1out.wr_reg_en <= '1';
+                                st1out.wr_reg_src <= rws_mem;
                                 st1out.wr_reg_idx <= rt;
 
                             -- for stores, write $rt to mem.
@@ -250,11 +259,13 @@ begin
                             -- alu - we're setting use_reg to '0'. alu calculation uses
                             -- value2.imm instead
                             when opc_sb =>
-                                st1out.wr_type <= wr_reg_to_memb;
+                                st1out.mem_wr_en <= '1';
+                                st1out.mem_type <= ma_byte;
                                 st1out.value2.use_reg <= '0';
 
                             when opc_sw =>
-                                st1out.wr_type <= wr_reg_to_memw;
+                                st1out.mem_wr_en <= '1';
+                                st1out.mem_type <= ma_word;
                                 st1out.value2.use_reg <= '0';
 
                             when others => null; -- impossible
