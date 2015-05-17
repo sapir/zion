@@ -86,7 +86,10 @@ OPCODES = {
     'addi': _O(0x10, IFmt_Imm8),    # useful for loops
     'slti': _O(0x12, IFmt_Imm8),
     'sltiu':_O(0x13, IFmt_Imm8),
+    'andi': _O(0x14, IFmt_Imm8),
     'ori':  _O(0x15, IFmt_Imm8),    # useful for li16
+    'nori': _O(0x16, IFmt_Imm8),
+    'xori': _O(0x17, IFmt_Imm8),
     'slli': _O(0x18, IFmt_Imm4),
     'srli': _O(0x19, IFmt_Imm4),
     'li8':  _O(0x1b, IFmt_Imm8),    # = 3-reg addi w/ $zero
