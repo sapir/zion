@@ -42,7 +42,7 @@ begin
                 else
                     -- assume dram - I/O doesn't support reads
                     if st3in.mem_type = ma_byte then
-                        wr_reg_data <= "00000000" & dram_douta;
+                        wr_reg_data <= "00000000" & dram_doutb;
                     else -- ma_word
                         wr_reg_data <= dram_douta & dram_doutb;
                     end if;

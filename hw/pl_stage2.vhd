@@ -148,46 +148,50 @@ begin
         constant wr_val_hi  : Logic_Byte    := wr_val(15 downto 8);
         constant wr_val_lo  : Logic_Byte    := wr_val(7 downto 0);
 
-        variable tmp_dram_addra, tmp_dram_addrb : DataByteAddr;
+        variable tmp_dram_addr, tmp_dram_addr_plus1 : DataByteAddr;
     begin
         -- set address inputs
-        tmp_dram_addra := mem_addr(10 downto 0);
-        tmp_dram_addrb := std_logic_vector(unsigned(tmp_dram_addra) + 1);
 
-        dram_addra  <= tmp_dram_addra;
-        dram_addrb  <= tmp_dram_addrb;
+        tmp_dram_addr := mem_addr(10 downto 0);
+        tmp_dram_addr_plus1 := std_logic_vector(unsigned(tmp_dram_addr) + 1);
+
+        -- dram port a reads/writes hi byte, port b reads/writes lo byte
+        if st2in.mem_type = ma_word then
+            dram_addra <= tmp_dram_addr;
+            dram_addrb <= tmp_dram_addr_plus1;
+        else -- ma_byte
+            -- only lo byte is accessed. use the regular address (not +1)
+            -- for lo byte
+            dram_addra <= (others => '-');
+            dram_addrb <= tmp_dram_addr;
+        end if;
+
         iram_addr   <= mem_addr(13 downto 1);   -- ignore lsb
 
-        -- set write enable bits by mem_wr_en
+        -- set write enable bits by mem_wr_en.
+        -- these depend on regular enable bit, set later depending on mem_addr.
+        -- note io_reg_we is handled later as it doesn't have a separate
+        -- enable bit.
         dram_wea    <= "0";
         dram_web    <= "0";
         iram_we     <= "0";
         if st2in.mem_wr_en = '1' then
-            dram_wea <= "1";
             if st2in.mem_type = ma_word then
+                dram_wea <= "1";
+                dram_web <= "1";
+            else -- ma_byte
+                -- only write lo byte (port b)
                 dram_web <= "1";
             end if;
 
             iram_we <= "1";
-
-            -- io_reg_we is handled later as it doesn't have a separate
-            -- enable bit
         end if;
 
-        -- set data to write by mem_type
-        iram_din <= "00" & wr_val; -- TODO
-        io_reg_inp <= wr_val_lo;
-        case st2in.mem_type is
-            when ma_byte =>
-                dram_dina <= wr_val_lo;
-                dram_dinb <= (others => '-');
-
-            when ma_word =>
-                dram_dina <= wr_val_hi;
-                dram_dinb <= wr_val_lo;
-
-            when others => null; -- impossible
-        end case;
+        -- set data to write
+        dram_dina <= wr_val_hi;
+        dram_dinb <= wr_val_lo;
+        iram_din <= "00" & wr_val;  -- TODO: can't access top 2 bits
+        io_reg_inp <= wr_val_lo;    -- only bytes supported
 
         -- set enable bits by memory address
         dram_ena    <= '0';
@@ -217,6 +221,7 @@ begin
             dram_enb <= '1';
         end if;
     end process;
+
 
     st2out.alu_res <= alu_res;
 
