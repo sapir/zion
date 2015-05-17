@@ -134,7 +134,7 @@ begin
     end process;
 
 
-    st3_mem_inps_proc : process(alu_res, final_reg2_val,
+    mem_inps_proc : process(alu_res, final_reg2_val,
         st2in.mem_wr_en, st2in.mem_type)
 
         -- 16-bit address we're reading/writing
