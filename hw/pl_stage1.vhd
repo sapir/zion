@@ -111,6 +111,8 @@ begin
         -- first set default values (except for values decided
         -- elsewhere)
         st1out.alu_op           <= aluop_add;
+        st1out.alu_neg          <= '0';
+        st1out.alu_sgnd         <= '-'; -- relevant only for slt/sltu
         st1out.value1.use_reg   <= '0';
         st1out.value1.imm       <= (others => '0');
         st1out.value2.use_reg   <= '0';
@@ -128,19 +130,31 @@ begin
             when "00" | "01" =>
 
                 case cur_opcode is
-                    when opc_add|opc_addi   => st1out.alu_op <= aluop_add;
-                    when opc_sub            => st1out.alu_op <= aluop_sub;
-                    when opc_slt|opc_slti   => st1out.alu_op <= aluop_slt;
-                    when opc_sltu|opc_sltiu => st1out.alu_op <= aluop_sltu;
-                    when opc_and            => st1out.alu_op <= aluop_and;
-                    when opc_or|opc_ori     => st1out.alu_op <= aluop_or;
-                    when opc_nor            => st1out.alu_op <= aluop_nor;
-                    when opc_xor            => st1out.alu_op <= aluop_xor;
-                    when opc_sll|opc_slli   => st1out.alu_op <= aluop_sll;
-                    when opc_srl|opc_srli   => st1out.alu_op <= aluop_srl;
-                    when opc_exts           => st1out.alu_op <= aluop_exts;
+                    when opc_add|opc_addi =>
+                        st1out.alu_op <= aluop_add;
 
-                    when opc_li8|opc_lui    => st1out.alu_op <= aluop_sll;
+                    when opc_sub =>
+                        st1out.alu_op  <= aluop_add;
+                        st1out.alu_neg <= '1';
+
+                    when opc_slt|opc_slti =>
+                        st1out.alu_op   <= aluop_slt;
+                        st1out.alu_sgnd <= '1';
+
+                    when opc_sltu|opc_sltiu =>
+                        st1out.alu_op   <= aluop_slt;
+                        st1out.alu_sgnd <= '0';
+
+                    when opc_and          =>   st1out.alu_op <= aluop_and;
+                    when opc_or|opc_ori   =>   st1out.alu_op <= aluop_or;
+                    when opc_nor          =>   st1out.alu_op <= aluop_nor;
+                    when opc_xor          =>   st1out.alu_op <= aluop_xor;
+                    when opc_sll|opc_slli =>   st1out.alu_op <= aluop_sll;
+                    when opc_srl|opc_srli =>   st1out.alu_op <= aluop_srl;
+                    when opc_exts         =>   st1out.alu_op <= aluop_exts;
+
+                    when opc_li8|opc_lui =>
+                        st1out.alu_op <= aluop_sll;
 
                     when others => null;
                 end case;

@@ -39,16 +39,14 @@ package defs is
 
     type Alu_Op_Type is (
         aluop_add,
-        aluop_sub,
         aluop_and,
         aluop_or,
         aluop_nor,
         aluop_xor,
         aluop_sll,
         aluop_srl,
-        aluop_exts,
         aluop_slt,
-        aluop_sltu
+        aluop_exts
         );
 
 
@@ -92,6 +90,8 @@ package defs is
             invalid_flag : std_logic;
 
             alu_op      : Alu_Op_Type;
+            alu_neg     : std_logic;
+            alu_sgnd    : std_logic;
 
             value1      : ImmOrReg_Type;    -- associated register is in rs
             value2      : ImmOrReg_Type;    -- associated register is in rt
@@ -120,6 +120,8 @@ package defs is
     constant Stage_1_2_Interface_zero : Stage_1_2_Interface
         := (invalid_flag => '0',
             alu_op      => aluop_add,
+            alu_neg     => '0',
+            alu_sgnd    => '0',
             value1      => (imm => (others => '0'),
                             reg_val => (others => '0'),
                             use_reg => '0'),

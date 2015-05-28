@@ -47,11 +47,12 @@ end pl_stage2;
 architecture Behavioral of pl_stage2 is
 
     COMPONENT alu
-    PORT (
-        op  : in Alu_Op_Type;
-        a   : in Logic_Word;
-        b   : in Logic_Word;
-        res : out Logic_Word);
+    Port ( op      : in Alu_Op_Type;
+           a       : in Logic_Word;
+           b       : in Logic_Word;
+           neg     : in std_logic;
+           sgnd    : in std_logic;
+           res     : out Logic_Word);
     END COMPONENT;
 
     -- value of $rs and $rt to actually use. may be different from
@@ -89,10 +90,12 @@ begin
 
 
     main_alu : alu PORT MAP (
-        op  => st2in.alu_op,
-        a   => alu_inp1,    -- decided in st2_alu_proc
-        b   => alu_inp2,    -- decided in st2_alu_proc
-        res => alu_res);
+        op      => st2in.alu_op,
+        neg     => st2in.alu_neg,
+        sgnd    => st2in.alu_sgnd,
+        a       => alu_inp1,
+        b       => alu_inp2,
+        res     => alu_res);
 
 
     branch_proc : process(st2in.branch_type, st2in.branch_dest, final_reg2_val,
