@@ -34,6 +34,7 @@ begin
         shift_right(num_b, to_integer(num_a))   when aluop_srl,
         resize(unsigned(a_lt_b), 16)            when aluop_slt,
         resize(unsigned(a_ltu_b), 16)           when aluop_sltu,
+        resize(num_a(7 downto 0), 16)           when aluop_exts,
         (others => '0')                         when others;
 
     res <= Logic_Word(num_res);
