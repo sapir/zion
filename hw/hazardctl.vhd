@@ -85,8 +85,9 @@ begin
         if st2_wr_reg_en = '1' and st2_invalid_flag = '0' then
             case st2_wr_reg_src is
                 when rws_mem =>
-                    -- if stage 2 wants to read value from memory, no way we can
-                    -- handle it in time. stage 1 will have to wait one cycle.
+                    -- we don't support forwarding for memory outputs.
+                    -- if stage 1 wants to use them, it'll have to wait one
+                    -- cycle.
                     if st2_wr_reg_idx = st1_reg1_idx
                         or st2_wr_reg_idx = st1_reg2_idx then
 
