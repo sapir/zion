@@ -48,9 +48,6 @@ begin
                     end if;
                 end if;
 
-            when rws_pc_plus_2 =>
-                wr_reg_data <= mem_addr_to_word(st3in.pc_plus_2);
-
             when others =>
                 wr_reg_data <= (others => '-');
         end case;

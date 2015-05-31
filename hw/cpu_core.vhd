@@ -133,7 +133,6 @@ architecture Behavioral of cpu_core is
         st2_wr_reg_idx      : in Reg_Index;
         st2_invalid_flag    : in std_logic;
         st3_alu_res         : in Logic_Word;
-        st3_pc_plus_2       : in MemWordAddr;
         st2_reg1_fwd        : out FwdValue;
         st2_reg2_fwd        : out FwdValue;
         st1_stall_flag      : out std_logic);
@@ -226,7 +225,6 @@ begin
         st2_wr_reg_idx      => st2in.wr_reg_idx,
         st2_invalid_flag    => st2in.invalid_flag,
         st3_alu_res         => st3in.alu_res,
-        st3_pc_plus_2       => st3in.pc_plus_2,
         st2_reg1_fwd        => st2_reg1_fwd,
         st2_reg2_fwd        => st2_reg2_fwd,
         st1_stall_flag      => st1_stall_flag);

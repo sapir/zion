@@ -86,7 +86,6 @@ begin
     st2out.wr_reg_en    <= st2in.wr_reg_en and not st2in.invalid_flag;
     st2out.wr_reg_src   <= st2in.wr_reg_src;
     st2out.wr_reg_idx   <= st2in.wr_reg_idx;
-    st2out.pc_plus_2    <= st2in.pc_plus_2;
 
 
     main_alu : alu PORT MAP (

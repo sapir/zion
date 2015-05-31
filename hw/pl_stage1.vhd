@@ -64,8 +64,6 @@ begin
     -- invalidate instructions on stalls and following taken branches
     st1out.invalid_flag <= st1_stall_flag or branch_flag;
 
-    st1out.pc_plus_2 <= st1in.pc_plus_2;
-
 
     with opcode_fld select cur_opcode <=
         opc_add     when "000000",
@@ -237,8 +235,14 @@ begin
 
                 -- link: save $pc+2 in $ra
                 if link_flag = '1' then
+                    st1out.value1.use_reg <= '0';
+                    st1out.value1.imm <= Logic_Word(
+                        resize(unsigned(st1in.pc_plus_2), 16));
+
+                    st1out.value2.use_reg <= '0';
+                    st1out.value2.imm <= (others => '0');
+
                     st1out.wr_reg_en <= '1';
-                    st1out.wr_reg_src <= rws_pc_plus_2;
                     st1out.wr_reg_idx <= ra_reg_idx;
                 end if;
 

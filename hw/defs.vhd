@@ -79,7 +79,7 @@ package defs is
         end record;
 
     type Branch_Type is (b_none, b_always_imm, b_always_reg, b_eqz, b_nez);
-    type RegWriteSrc_Type is (rws_alu, rws_mem, rws_pc_plus_2);
+    type RegWriteSrc_Type is (rws_alu, rws_mem);
     type MemAccess_Type is (ma_byte, ma_word);
 
     type Stage_1_2_Interface is
@@ -113,9 +113,6 @@ package defs is
             wr_reg_en   : std_logic;
             wr_reg_src  : RegWriteSrc_Type;
             wr_reg_idx  : Reg_Index;
-
-            -- copied from stage 0
-            pc_plus_2   : MemWordAddr;
         end record;
 
     constant Stage_1_2_Interface_zero : Stage_1_2_Interface
@@ -154,7 +151,6 @@ package defs is
                                             -- wr_none
             wr_reg_src  : RegWriteSrc_Type;
             wr_reg_idx  : Reg_Index;
-            pc_plus_2   : MemWordAddr;
         end record;
 
 
