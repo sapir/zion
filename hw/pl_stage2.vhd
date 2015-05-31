@@ -154,7 +154,7 @@ begin
     begin
         -- set address inputs
 
-        tmp_dram_addr := mem_addr(10 downto 0);
+        tmp_dram_addr := mem_addr(DataByteAddr'length - 1 downto 0);
         tmp_dram_addr_plus1 := std_logic_vector(unsigned(tmp_dram_addr) + 1);
 
         -- dram port a reads/writes hi byte, port b reads/writes lo byte
