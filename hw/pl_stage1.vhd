@@ -139,10 +139,12 @@ begin
 
                     when opc_slt|opc_slti =>
                         st1out.alu_op   <= aluop_slt;
+                        st1out.alu_neg  <= '1';
                         st1out.alu_sgnd <= '1';
 
                     when opc_sltu|opc_sltiu =>
                         st1out.alu_op   <= aluop_slt;
+                        st1out.alu_neg  <= '1';
                         st1out.alu_sgnd <= '0';
 
                     when opc_and          =>   st1out.alu_op <= aluop_and;
