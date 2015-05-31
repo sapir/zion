@@ -88,8 +88,8 @@ begin
                     -- we don't support forwarding for memory outputs.
                     -- if stage 1 wants to use them, it'll have to wait one
                     -- cycle.
-                    if st2_wr_reg_idx = st1_reg1_idx
-                        or st2_wr_reg_idx = st1_reg2_idx then
+                    if st1_reg1_idx = st2_wr_reg_idx
+                        or st1_reg2_idx = st2_wr_reg_idx then
 
                         st1_stall_flag <= '1';
 
