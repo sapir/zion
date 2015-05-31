@@ -17,7 +17,7 @@ architecture Behavioral of alu is
     signal add_res          : unsigned(16 downto 0);
     signal sll_res, srl_res : u16;
     signal slt_res          : std_logic;
-    signal exts_res         : u16;
+    signal exts_res         : s16;
     signal tmp_res          : Logic_Word;
 begin
 
@@ -59,7 +59,7 @@ begin
 
     slt_res <= add_res(16);      -- a < b if result is negative
 
-    exts_res <= resize(unsigned(b(7 downto 0)), 16);
+    exts_res <= resize(signed(b(7 downto 0)), 16);
 
 
     with op select tmp_res <=

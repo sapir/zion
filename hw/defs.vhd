@@ -21,6 +21,7 @@ package defs is
     subtype u16 is unsigned(15 downto 0);
     subtype u8 is unsigned(7 downto 0);
     subtype u4 is unsigned(3 downto 0);
+    subtype s16 is signed(15 downto 0);
 
     type Opcode_Type is (
         opc_add, opc_sub, opc_slt, opc_sltu,
