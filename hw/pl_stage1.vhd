@@ -106,8 +106,7 @@ begin
     outputs_proc : process(cur_opcode, st1in.pc_plus_2,
         opcode_grp, rd, rs, rt, imm8, addr12, addr8, link_flag)
     begin
-        -- first set default values (except for values decided
-        -- elsewhere)
+        -- first set default values (except for values decided elsewhere)
         st1out.alu_op           <= aluop_add;
         st1out.alu_neg          <= '0';
         st1out.alu_sgnd         <= '-'; -- relevant only for slt/sltu
@@ -124,7 +123,7 @@ begin
         st1out.wr_reg_idx       <= (others => '-');
 
         case opcode_grp is
-            -- group 0: IFmt_Math3, IFmt_Math2; group 1: IFmt_Imm8
+            -- group 0: IFmt_Math3, IFmt_Math2; group 1: IFmt_Imm8, IFmt_Imm4
             when "00" | "01" =>
 
                 case cur_opcode is
