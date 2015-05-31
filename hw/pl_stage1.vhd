@@ -207,7 +207,8 @@ begin
                     when opc_j | opc_jal =>
                         st1out.branch_type <= b_always_imm;
                         st1out.branch_dest <= MemWordAddr(
-                            signed(st1in.pc_plus_2) + resize(signed(addr12), 13));
+                            signed(st1in.pc_plus_2)
+                            + resize(signed(addr12), MemWordAddr'length));
 
                     when opc_jr | opc_jalr =>
                         -- note we'll be using the value of $rt as the branch
@@ -222,12 +223,14 @@ begin
                     when opc_beqz =>
                         st1out.branch_type <= b_eqz;
                         st1out.branch_dest <= MemWordAddr(
-                            signed(st1in.pc_plus_2) + resize(signed(addr8), 13));
+                            signed(st1in.pc_plus_2)
+                            + resize(signed(addr8), MemWordAddr'length));
 
                     when opc_bnez =>
                         st1out.branch_type <= b_nez;
                         st1out.branch_dest <= MemWordAddr(
-                            signed(st1in.pc_plus_2) + resize(signed(addr8), 13));
+                            signed(st1in.pc_plus_2)
+                            + resize(signed(addr8), MemWordAddr'length));
 
                     when others => null; -- invalid instr., use defaults
                 end case;

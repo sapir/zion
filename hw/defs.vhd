@@ -160,24 +160,24 @@ package defs is
     -- LEDs bitmask. byte-only and write-only.
     constant iomem_addr_leds : Logic_Word := "1000000000000000";
 
-    function word_to_mem_addr(signal w : in Logic_Word) return MemWordAddr;
+    function word_to_mem_addr(constant w : in Logic_Word) return MemWordAddr;
 
-    function mem_addr_to_word(signal ma : in MemWordAddr) return Logic_Word;
+    function mem_addr_to_word(constant ma : in MemWordAddr) return Logic_Word;
 
 end defs;
 
 package body defs is
 
-    function word_to_mem_addr(signal w : in Logic_Word) return MemWordAddr is
+    function word_to_mem_addr(constant w : in Logic_Word) return MemWordAddr is
     begin
         -- word addresses always have lsb = 0, so ignore lsb
-        return w(13 downto 1);
+        return w(MemWordAddr'length downto 1);
     end word_to_mem_addr;
 
-    function mem_addr_to_word(signal ma : in MemWordAddr) return Logic_Word is
+    function mem_addr_to_word(constant ma : in MemWordAddr) return Logic_Word is
     begin
         -- inverse of word_to_mem_addr
-        return "00" & ma & "0";
+        return Logic_Word(resize(unsigned(ma & "0"), 16));
     end mem_addr_to_word;
 
 end defs;

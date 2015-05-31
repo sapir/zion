@@ -168,7 +168,7 @@ begin
             dram_addrb <= tmp_dram_addr;
         end if;
 
-        iram_addr   <= mem_addr(13 downto 1);   -- ignore lsb
+        iram_addr <= word_to_mem_addr(mem_addr);
 
         -- set write enable bits by mem_wr_en.
         -- these depend on regular enable bit, set later depending on mem_addr.
