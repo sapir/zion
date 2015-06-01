@@ -43,9 +43,7 @@ entity hazardctl is
         -- tell stage 2 whether to override its inputs (due to data
         -- hazard detected in previous instruction's stage 1)
         st2_reg1_fwd        : out FwdValue;
-        st2_reg2_fwd        : out FwdValue;
-        -- tell stage 1 (and 0) whether to stall
-        st1_stall_flag      : out std_logic);
+        st2_reg2_fwd        : out FwdValue);
 end hazardctl;
 
 
@@ -75,10 +73,8 @@ begin
     st1_data_hazard_proc : process(st1_reg1_idx, st1_reg2_idx,
         st2_wr_reg_en, st2_wr_reg_src, st2_wr_reg_idx, st2_invalid_flag)
     begin
-        -- default: use values from stage 1 unless there's a data hazard,
-        -- and don't stall.
+        -- default: use values from stage 1 unless there's a data hazard
         st1_plan_fwd <= (others => '0');
-        st1_stall_flag <= '0';
 
         -- forward values from stage 2.
         -- ignore writes for invalidated instructions
@@ -86,13 +82,11 @@ begin
             case st2_wr_reg_src is
                 when rws_mem =>
                     -- we don't support forwarding for memory outputs.
-                    -- if stage 1 wants to use them, it'll have to wait one
-                    -- cycle.
                     if st1_reg1_idx = st2_wr_reg_idx
                         or st1_reg2_idx = st2_wr_reg_idx then
 
-                        st1_stall_flag <= '1';
-
+                        -- attempt to access register in delay slot!
+                        st1_plan_fwd <= (others => '-');
                     end if;
 
                 when rws_alu =>

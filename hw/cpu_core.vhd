@@ -68,8 +68,7 @@ architecture Behavioral of cpu_core is
         iram_addr       : out MemWordAddr;
         st0out          : out Stage_0_1_Interface;
         branch_flag     : in std_logic;
-        branch_dest     : in MemWordAddr;
-        st1_stall_flag  : in std_logic);
+        branch_dest     : in MemWordAddr);
     END COMPONENT;
 
     COMPONENT pl_stage1
@@ -82,8 +81,7 @@ architecture Behavioral of cpu_core is
         reg_dout1       : in Logic_Word;
         reg_dout2       : in Logic_Word;
         st1out          : out Stage_1_2_Interface;
-        branch_flag     : in std_logic;
-        st1_stall_flag  : in std_logic);
+        branch_flag     : in std_logic);
     END COMPONENT;
 
     COMPONENT pl_stage2
@@ -134,8 +132,7 @@ architecture Behavioral of cpu_core is
         st2_invalid_flag    : in std_logic;
         st3_alu_res         : in Logic_Word;
         st2_reg1_fwd        : out FwdValue;
-        st2_reg2_fwd        : out FwdValue;
-        st1_stall_flag      : out std_logic);
+        st2_reg2_fwd        : out FwdValue);
     END COMPONENT;
 
 
@@ -145,7 +142,6 @@ architecture Behavioral of cpu_core is
     signal st1out, st2in : Stage_1_2_Interface := Stage_1_2_Interface_zero;
     signal st2out, st3in : Stage_2_3_Interface;
 
-    signal st1_stall_flag               : std_logic;
     signal st2_reg1_fwd, st2_reg2_fwd   : FwdValue;
     signal branch_flag                  : std_logic;
     signal branch_dest                  : MemWordAddr;
@@ -168,8 +164,7 @@ begin
         iram_addr       => iram_addra,
         st0out          => st0out,
         branch_flag     => branch_flag,
-        branch_dest     => branch_dest,
-        st1_stall_flag  => st1_stall_flag);
+        branch_dest     => branch_dest);
 
     inst_pl_stage1: pl_stage1 PORT MAP(
         clk             => clk,
@@ -180,8 +175,7 @@ begin
         reg_dout1       => reg_dout1,
         reg_dout2       => reg_dout2,
         st1out          => st1out,
-        branch_flag     => branch_flag,
-        st1_stall_flag  => st1_stall_flag);
+        branch_flag     => branch_flag);
 
     inst_pl_stage2: pl_stage2 PORT MAP(
         clk         => clk,
@@ -226,8 +220,7 @@ begin
         st2_invalid_flag    => st2in.invalid_flag,
         st3_alu_res         => st3in.alu_res,
         st2_reg1_fwd        => st2_reg1_fwd,
-        st2_reg2_fwd        => st2_reg2_fwd,
-        st1_stall_flag      => st1_stall_flag);
+        st2_reg2_fwd        => st2_reg2_fwd);
 
 
     sync_proc : process(clk)

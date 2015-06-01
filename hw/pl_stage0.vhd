@@ -14,15 +14,7 @@ entity pl_stage0 is
 
         -- inputs back from stage 1
         branch_flag     : in std_logic;
-        branch_dest     : in MemWordAddr;
-
-        -- inputs from pipeline hazard logic
-
-        -- if '1', pc won't be updated to next_pc, so instruction in stage 1
-        -- will be repeated. (stage 1 should of course also be invalidated using
-        -- st1out.invalid_flag.) in case of branch from stage 2, stall of stage
-        -- 1 will be ignored; it should have been invalidated anyway.
-        st1_stall_flag   : in std_logic);
+        branch_dest     : in MemWordAddr);
 end pl_stage0;
 
 
@@ -50,16 +42,10 @@ begin
     -- currently output instruction
     st0out.pc_plus_2 <= pc_plus_2;
 
-    next_pc_proc : process(pc, pc_plus_2, st1_stall_flag,
-        branch_flag, branch_dest)
+    next_pc_proc : process(pc, pc_plus_2, branch_flag, branch_dest)
     begin
         if branch_flag = '1' then
             next_pc <= branch_dest;
-
-        elsif st1_stall_flag = '1' then
-            -- stage 1 is stalling. it'll want the same instruction next cycle
-            next_pc <= pc;
-
         else
             next_pc <= pc_plus_2;
         end if;
