@@ -213,8 +213,8 @@ begin
                         st1out.branch_dest <= (others => '-');
 
                     -- note for cond. branches we'll be using the value of $rt
-                    -- as the branch destination, but we don't care what the
-                    -- ALU sees because we won't be using it.
+                    -- for the branch condition, but we don't care what the ALU
+                    -- sees because we won't be using it.
                     when opc_beqz =>
                         st1out.branch_type <= b_eqz;
                         st1out.branch_dest <= MemWordAddr(

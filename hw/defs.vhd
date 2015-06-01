@@ -103,7 +103,8 @@ package defs is
             branch_type : Branch_Type;
             -- pc after branch (except for b_always_reg, in which case reg2 is
             -- used). not calculated using ALU to avoid data hazard detection
-            -- on ALU inputs, when in fact we already know the correct values.
+            -- on ALU inputs, when in fact we already know the correct values
+            -- (again: except for b_always_reg).
             branch_dest : MemWordAddr;
 
             mem_wr_en   : std_logic;
