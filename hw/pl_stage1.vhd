@@ -185,8 +185,8 @@ begin
                     st1out.wr_reg_idx     <= rt;
 
                     st1out.value1.use_reg <= '0';
-                    -- some instrs. treat immediate as signed, some as unsigned
-                    if cur_opcode = opc_addi or cur_opcode = opc_slti then
+                    -- most instrs. treat immediate as unsigned, some as signed
+                    if cur_opcode = opc_slti then
                         st1out.value1.imm <= Logic_Word(resize(signed(imm8), 16));
                     else
                         st1out.value1.imm <= Logic_Word(resize(unsigned(imm8), 16));
