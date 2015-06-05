@@ -160,6 +160,9 @@ def expandMacros(stmt):
         rd, rt = stmt.operands
         return [OpcodeStmt('add', [rd, Register('$zero'), rt])]
 
+    elif stmt.opcode == 'addi' and stmt.operands[1] < 0:
+        return [OpcodeStmt('subi', [stmt.operands[0], -stmt.operands[1]])]
+
     elif stmt.opcode == 'halt':
         return [OpcodeStmt('j', [-1])]
 
