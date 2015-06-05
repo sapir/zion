@@ -129,7 +129,7 @@ def expandMacros(stmt):
     if stmt.opcode in ['add', 'sub', 'slt', 'sltu'] and len(stmt.operands) == 2:
 
         rd, rt = stmt.operands
-        return [stmt.replace(operands=[rd, rt, rt])]
+        return [stmt._replace(operands=[rd, rt, rt])]
 
     elif stmt.opcode == 'nop':
         return [OpcodeStmt('add', [Register('$zero')] * 3)]
