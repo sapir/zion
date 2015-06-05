@@ -234,8 +234,7 @@ begin
                 -- link: save $pc+2 in $ra
                 if link_flag = '1' then
                     st1out.value1.use_reg <= '0';
-                    st1out.value1.imm <= Logic_Word(
-                        resize(unsigned(st1in.pc_plus_2), 16));
+                    st1out.value1.imm <= mem_addr_to_word(st1in.pc_plus_2);
 
                     st1out.value2.use_reg <= '0';
                     st1out.value2.imm <= (others => '0');
