@@ -74,6 +74,7 @@ begin
         opc_exts    when "001010",
 
         opc_addi    when "010000",
+        opc_subi    when "010001",
         opc_slti    when "010010",
         opc_sltiu   when "010011",
         opc_ori     when "010101",
@@ -125,7 +126,7 @@ begin
                     when opc_add|opc_addi =>
                         st1out.alu_op <= aluop_add;
 
-                    when opc_sub =>
+                    when opc_sub|opc_subi =>
                         st1out.alu_op  <= aluop_add;
                         st1out.alu_neg <= '1';
 

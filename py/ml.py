@@ -83,7 +83,8 @@ OPCODES = {
     # Opcode group 1: reg+imm math & logic
     # (for opcodes with a 3-register version, sub-id should match
     # sub-id in group 0)
-    'addi': _O(0x10, IFmt_Imm8),    # useful for loops
+    'addi': _O(0x10, IFmt_Imm8),    # useful for loops and function epilogues
+    'subi': _O(0x11, IFmt_Imm8),    # useful for function prologues
     'slti': _O(0x12, IFmt_Imm8),
     'sltiu':_O(0x13, IFmt_Imm8),
     'andi': _O(0x14, IFmt_Imm8),

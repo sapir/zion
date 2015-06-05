@@ -27,7 +27,7 @@ package defs is
         opc_add, opc_sub, opc_slt, opc_sltu,
         opc_and, opc_or, opc_nor, opc_xor,
         opc_sll, opc_srl, opc_exts,
-        opc_addi, opc_slti, opc_sltiu,
+        opc_addi, opc_subi, opc_slti, opc_sltiu,
         opc_ori,
         opc_slli, opc_srli,
         opc_li8, opc_lui,
