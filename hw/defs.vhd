@@ -28,7 +28,7 @@ package defs is
         opc_and, opc_or, opc_nor, opc_xor,
         opc_sll, opc_srl, opc_exts,
         opc_addi, opc_subi, opc_slti, opc_sltiu,
-        opc_ori,
+        opc_andi, opc_ori, opc_nori, opc_xori,
         opc_slli, opc_srli,
         opc_li8, opc_lui,
         opc_j, opc_jal, opc_jr, opc_jalr,

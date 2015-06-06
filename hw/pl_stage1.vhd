@@ -77,7 +77,10 @@ begin
         opc_subi    when "010001",
         opc_slti    when "010010",
         opc_sltiu   when "010011",
+        opc_andi    when "010100",
         opc_ori     when "010101",
+        opc_nori    when "010110",
+        opc_xori    when "010111",
         opc_slli    when "011000",
         opc_srli    when "011001",
         opc_li8     when "011011",
@@ -140,10 +143,10 @@ begin
                         st1out.alu_neg  <= '1';
                         st1out.alu_sgnd <= '0';
 
-                    when opc_and          =>   st1out.alu_op <= aluop_and;
+                    when opc_and|opc_andi =>   st1out.alu_op <= aluop_and;
                     when opc_or|opc_ori   =>   st1out.alu_op <= aluop_or;
-                    when opc_nor          =>   st1out.alu_op <= aluop_nor;
-                    when opc_xor          =>   st1out.alu_op <= aluop_xor;
+                    when opc_nor|opc_nori =>   st1out.alu_op <= aluop_nor;
+                    when opc_xor|opc_xori =>   st1out.alu_op <= aluop_xor;
                     when opc_sll|opc_slli =>   st1out.alu_op <= aluop_sll;
                     when opc_srl|opc_srli =>   st1out.alu_op <= aluop_srl;
                     when opc_exts         =>   st1out.alu_op <= aluop_exts;
