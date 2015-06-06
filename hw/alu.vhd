@@ -22,19 +22,15 @@ architecture Behavioral of alu is
 begin
 
     add_proc : process(a, b, neg, sgnd)
-        variable final_a, final_b : Logic_Word;
         variable ext17_a, ext17_b : std_logic_vector(16 downto 0);
         variable unsigned_c       : unsigned(0 downto 0);
     begin
-        final_a := a;
-        if neg = '1' then
-            final_b := not b; -- we'll add 1 later to get -b
-        else
-            final_b := b;
-        end if;
+        ext17_a := (sgnd and a(15)) & a;
+        ext17_b := (sgnd and b(15)) & b;
 
-        ext17_a := (sgnd and final_a(15)) & final_a;
-        ext17_b := (sgnd and final_b(15)) & final_b;
+        if neg = '1' then
+            ext17_b := not ext17_b; -- we then add 1 using unsigned_c to get -b
+        end if;
 
         unsigned_c := (0 => neg);
         add_res <= unsigned(ext17_a) + unsigned(ext17_b) + unsigned_c;
