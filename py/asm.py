@@ -126,10 +126,15 @@ def _encodeOperand(fieldName, value, curStmtIndex, labels):
         raise ValueError("unknown field {!r}".format(fieldName))
 
 def expandMacros(stmt):
-    if stmt.opcode in ['add', 'sub', 'slt', 'sltu'] and len(stmt.operands) == 2:
+    opcodeInfo = OPCODES.get(stmt.opcode)
+
+    if (opcodeInfo is not None
+        and (opcodeInfo.ifmt is IFmt_Math3
+            or opcodeInfo.ifmt is IFmt_Math3_shift)
+        and len(stmt.operands) == 2):
 
         rd, rt = stmt.operands
-        return [stmt._replace(operands=[rd, rt, rt])]
+        return [stmt._replace(operands=[rd, rd, rt])]
 
     elif stmt.opcode == 'nop':
         return [OpcodeStmt('add', [Register('$zero')] * 3)]
